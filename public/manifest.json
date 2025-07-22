@@ -1,17 +1,46 @@
 {
   "short_name": "חנות חיות מחמד",
   "name": "מאתר מוצרים תחליפיים לחנות חיות מחמד",
+  "description": "חיפוש מוצרים תחליפיים לחיות מחמד עם ממשק עברי",
   "icons": [
     {
       "src": "favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/x-icon"
+    },
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-256.png",
+      "type": "image/png",
+      "sizes": "256x256",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-384.png",
+      "type": "image/png",
+      "sizes": "384x384",
+      "purpose": "any"
     }
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
+  "theme_color": "#3182ce",
   "background_color": "#ffffff",
   "lang": "he",
-  "dir": "rtl"
+  "dir": "rtl",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "categories": ["shopping", "pets", "lifestyle"],
+  "screenshots": []
 } 
