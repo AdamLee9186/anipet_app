@@ -1516,7 +1516,9 @@ function App() {
             console.log('📥 Index data keys:', Object.keys(indexData || {}));
             
             // Only save if we're not using cached index
+            console.log('🔍 skipSave flag:', e.data.skipSave);
             if (!e.data.skipSave) {
+              console.log('💾 Saving new index to IndexedDB...');
               saveIndex(indexData).then(() => {
                 console.log('🚀 Index saved to IndexedDB');
                 toastRef.current({

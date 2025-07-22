@@ -494,7 +494,8 @@ self.onmessage = function(e) {
               try {
                 self.postMessage({
                   type: 'indexReady',
-                  payload: serializableIndex
+                  payload: serializableIndex,
+                  skipSave: false
                 });
                 console.log('✅ New index message sent to main thread');
               } catch (error) {
@@ -506,7 +507,8 @@ self.onmessage = function(e) {
                 };
                 self.postMessage({
                   type: 'indexReady',
-                  payload: minimalIndex
+                  payload: minimalIndex,
+                  skipSave: false
                 });
                 console.log('✅ Minimal index message sent to main thread');
               }
