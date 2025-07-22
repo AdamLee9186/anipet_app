@@ -441,22 +441,8 @@ const createSearchWorker = () => {
       switch (type) {
         case 'init':
           products = data.products;
-          // Build index using requestIdleCallback to avoid blocking
-          if (products && products.length > 0) {
-            // Use requestIdleCallback for better performance
-            if (typeof requestIdleCallback !== 'undefined') {
-              requestIdleCallback(() => {
-                buildSearchIndex();
-                self.postMessage({ type: 'indexReady' });
-              }, { timeout: 1000 });
-            } else {
-              // Fallback for browsers that don't support requestIdleCallback
-              setTimeout(() => {
-                buildSearchIndex();
-                self.postMessage({ type: 'indexReady' });
-              }, 0);
-            }
-          }
+          // Don't build index here - use the one from IndexedDB
+          // Just mark as ready
           self.postMessage({ type: 'ready' });
           break;
           
@@ -782,6 +768,9 @@ const Autocomplete = React.forwardRef(function Autocomplete({
     // Send products to worker immediately when products are loaded
     console.log('Sending products to worker for indexing...');
     worker.postMessage({ type: 'init', data: { products } });
+    
+    // Mark as ready immediately since we don't build index here anymore
+    setIsWorkerReady(true);
     
     return () => {
       // Don't terminate worker on every products change
