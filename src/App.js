@@ -1,5 +1,6 @@
 // App.js - Pet Store App with Hebrew Interface
 // Connected to GitHub and Netlify for automatic deployments
+// Updated for deployment with fixed data-worker.js
 import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense, lazy } from 'react';
 // import debounce from 'lodash.debounce'; // Removed unused import
 import { Tag, Dog, Baby, Folder, Utensils, HeartCrack, Star, Filter, Package, DollarSign, Scale, X, Check, Link, Search, ArrowDownUp, LayoutGrid, StretchHorizontal } from 'lucide-react';
