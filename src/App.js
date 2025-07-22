@@ -1504,6 +1504,49 @@ function App() {
             } else {
               setProducts(products);
               setError(null);
+              
+              // Build Fuse.js index here instead of in worker
+              console.log('🚀 Building Fuse.js index in main thread...');
+              try {
+                const Fuse = require('fuse.js');
+                const fuseConfig = {
+                  keys: [
+                    { name: 'productName', weight: 0.7 },
+                    { name: 'brand', weight: 0.5 },
+                    { name: 'animalType', weight: 0.3 },
+                    { name: 'mainIngredient', weight: 0.3 },
+                    { name: 'sku', weight: 0.2 },
+                    { name: 'barcode', weight: 0.2 }
+                  ],
+                  threshold: 0.3,
+                  includeScore: true,
+                  includeMatches: true
+                };
+                
+                const fuseIndex = new Fuse(products, fuseConfig);
+                const indexData = fuseIndex.getIndex();
+                const serializableIndex = {
+                  records: indexData.records,
+                  keys: indexData.keys,
+                  docs: indexData.docs
+                };
+                
+                console.log('💾 Saving Fuse.js index to IndexedDB...');
+                saveIndex(serializableIndex).then(() => {
+                  console.log('🚀 Index saved to IndexedDB successfully');
+                  toastRef.current({
+                    title: "אינדקס נשמר",
+                    description: "אינדקס החיפוש נשמר בדפדפן",
+                    status: "success",
+                    duration: 2000,
+                    isClosable: true,
+                  });
+                }).catch(error => {
+                  console.error('❌ Failed to save index:', error);
+                });
+              } catch (error) {
+                console.error('❌ Failed to build Fuse.js index:', error);
+              }
             }
             setLoading(false);
             worker.terminate();

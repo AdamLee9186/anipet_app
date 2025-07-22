@@ -459,6 +459,7 @@ self.onmessage = function(e) {
                 console.warn('Failed to parse cached index, creating new one:', error);
                 console.warn('Error details:', error.message);
               }
+            }
             
             // Check if we should skip index rebuild
             if (data && data.skipIndexRebuild) {
