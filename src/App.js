@@ -1981,7 +1981,6 @@ function App() {
   }, [
     shouldComputeFilteredProducts,
     products, 
-    selectedProduct,
     hasActiveFilters,
     debouncedFilters.activeFilters,
     debouncedFilters.priceRange,

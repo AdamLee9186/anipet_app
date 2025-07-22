@@ -854,7 +854,7 @@ const Autocomplete = React.forwardRef(function Autocomplete({
     setIsOpen(false);
     setIsSearching(false);
     search(value);
-  }, [search, onChange, isWorkerReady]);
+  }, [search, onChange]);
 
   const handleKeyDown = useCallback((e) => {
     const totalItems = shortcuts.length + results.length;
