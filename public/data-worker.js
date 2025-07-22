@@ -8,7 +8,7 @@ try {
   importScripts('https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js');
   // console.log('[Worker] Successfully loaded Fuse.js and pako libraries');
 } catch (error) {
-      // console.warn('[Worker] Failed to load libraries:', error);
+  // console.warn('[Worker] Failed to load libraries:', error);
 }
 
 // Fuse.js configuration for search - optimized for autocomplete
