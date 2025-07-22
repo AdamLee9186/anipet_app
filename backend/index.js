@@ -79,10 +79,10 @@ app.get('/search', (req, res) => {
     if (q) {
       const searchTerm = q.toLowerCase();
       filteredProducts = filteredProducts.filter(product => 
-        product.productName.toLowerCase().includes(searchTerm) ||
-        product.brand.toLowerCase().includes(searchTerm) ||
-        product.animalType.toLowerCase().includes(searchTerm) ||
-        product.mainIngredient.toLowerCase().includes(searchTerm)
+        product.productName?.toLowerCase().includes(searchTerm) ||
+        product.brand?.toLowerCase().includes(searchTerm) ||
+        product.animalType?.toLowerCase().includes(searchTerm) ||
+        product.mainIngredient?.toLowerCase().includes(searchTerm)
       );
     }
     
@@ -135,8 +135,8 @@ app.get('/autocomplete', (req, res) => {
     for (const product of products) {
       if (matches.length >= 5) break; // Early termination
       
-      if (product.productName.toLowerCase().includes(searchTerm) ||
-          product.brand.toLowerCase().includes(searchTerm)) {
+      if (product.productName?.toLowerCase().includes(searchTerm) ||
+          product.brand?.toLowerCase().includes(searchTerm)) {
         matches.push(product);
       }
     }

@@ -115,3 +115,5 @@ temp/
 # Local development files
 start-app.bat
 start-app.ps1 
+# Local Netlify folder
+.netlify

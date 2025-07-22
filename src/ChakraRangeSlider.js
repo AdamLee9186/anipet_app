@@ -101,7 +101,7 @@ const ChakraRangeSlider = ({
             <option value={'ק&quot;ג'}>ק&quot;ג</option>
             <option value="גרם">גרם</option>
             <option value="ליטר">ליטר</option>
-            <option value="ml">מ&quot;ל</option>
+            <option value="מ&quot;ל">מ&quot;ל</option>
             <option value={'מ&quot;ג'}>מ&quot;ג</option>
           </Select>
         )}

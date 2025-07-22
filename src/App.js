@@ -3,7 +3,7 @@
 // Updated for deployment with fixed data-worker.js
 import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense, lazy } from 'react';
 // import debounce from 'lodash.debounce'; // Removed unused import
-import { Tag, Dog, Baby, Folder, Utensils, HeartCrack, Star, Filter, Package, DollarSign, Scale, X, Check, Link, Search, ArrowDownUp, LayoutGrid, StretchHorizontal } from 'lucide-react';
+import { Tag, Dog, Baby, Folder, Utensils, HeartCrack, Star, Filter, Package, DollarSign, Scale, X, Check, Link, Search, ArrowDownUp, LayoutGrid, StretchHorizontal, Dices, CircleCheck, Trash } from 'lucide-react';
 import {
   Box,
   Flex,
@@ -53,40 +53,71 @@ const normalizeSupplier = str => (str || '').trim().replace(/\s+/g, '');
 
 // Helper function to parse weight from text
 const parseWeight = (weightText, productName = '') => {
-  if (!weightText) return { weight: 0, weightUnit: 'ק"ג' };
+  if (!weightText) return { weight: 0, weightUnit: 'ק"ג', originalWeight: 0, originalUnit: 'ק"ג' };
   
-  // Remove common prefixes and clean up the text
-  let cleaned = weightText.toString().replace(/^[^0-9]*/, '').trim();
+  // Try to extract weight and unit from various formats
+  const kgMatch = weightText.match(/(\d+(?:\.\d+)?)\s*ק"?ג/);
+  const gramMatch = weightText.match(/(\d+(?:\.\d+)?)\s*גרם/);
+  const literMatch = weightText.match(/(\d+(?:\.\d+)?)\s*ליטר/);
+  const mgMatch = weightText.match(/(\d+(?:\.\d+)?)\s*מ"?ג/);
+  const mlMatch = weightText.match(/(\d+(?:\.\d+)?)\s*מ"?ל/);
   
-  // Extract number and unit
-  const match = cleaned.match(/^([0-9]+\.?[0-9]*)\s*([ק"גגרםmlק"לליטר])/);
-  if (match) {
-    const value = parseFloat(match[1]);
-    const unit = match[2];
-    
-    // Convert to kg for consistency
-    if (unit === 'גרם' || unit === 'g') {
-      return { weight: value / 1000, weightUnit: 'ק"ג' };
-    } else if (unit === 'ml' || unit === 'ק"ל' || unit === 'ליטר') {
-      return { weight: value, weightUnit: 'ליטר' };
-    } else {
-      return { weight: value, weightUnit: 'ק"ג' };
-    }
+  if (kgMatch) {
+    const value = parseFloat(kgMatch[1]);
+    return { weight: value, weightUnit: 'ק"ג', originalWeight: value, originalUnit: 'ק"ג' };
+  } else if (gramMatch) {
+    const value = parseFloat(gramMatch[1]);
+    return { weight: value, weightUnit: 'גרם', originalWeight: value, originalUnit: 'גרם' };
+  } else if (literMatch) {
+    const value = parseFloat(literMatch[1]);
+    return { weight: value, weightUnit: 'ליטר', originalWeight: value, originalUnit: 'ליטר' };
+  } else if (mgMatch) {
+    const value = parseFloat(mgMatch[1]);
+    return { weight: value, weightUnit: 'מ"ג', originalWeight: value, originalUnit: 'מ"ג' };
+  } else if (mlMatch) {
+    const value = parseFloat(mlMatch[1]);
+    return { weight: value, weightUnit: 'מ"ל', originalWeight: value, originalUnit: 'מ"ל' };
   }
   
   // Try to extract just a number
-  const numberMatch = cleaned.match(/^([0-9]+\.?[0-9]*)/);
+  const numberMatch = weightText.match(/^([0-9]+\.?[0-9]*)/);
   if (numberMatch) {
     const value = parseFloat(numberMatch[1]);
     // Assume grams if it's a small number, kg if it's larger
     if (value < 100) {
-      return { weight: value / 1000, weightUnit: 'ק"ג' };
+      return { weight: value, weightUnit: 'גרם', originalWeight: value, originalUnit: 'גרם' };
     } else {
-      return { weight: value, weightUnit: 'ק"ג' };
+      return { weight: value, weightUnit: 'ק"ג', originalWeight: value, originalUnit: 'ק"ג' };
     }
   }
   
-  return { weight: 0, weightUnit: 'ק"ג' };
+  // Fallback: extract weight from product name if not found in weight column
+  if (productName) {
+    const nameKgMatch = productName.match(/(\d+(?:\.\d+)?)\s*(?:ק"?ג|קילו)/);
+    const nameGramMatch = productName.match(/(\d+(?:\.\d+)?)\s*גרם/);
+    const nameLiterMatch = productName.match(/(\d+(?:\.\d+)?)\s*ליטר/);
+    const nameMgMatch = productName.match(/(\d+(?:\.\d+)?)\s*מ"?ג/);
+    const nameMlMatch = productName.match(/(\d+(?:\.\d+)?)\s*מ"?ל/);
+    
+    if (nameKgMatch) {
+      const value = parseFloat(nameKgMatch[1]);
+      return { weight: value, weightUnit: 'ק"ג', originalWeight: value, originalUnit: 'ק"ג' };
+    } else if (nameGramMatch) {
+      const value = parseFloat(nameGramMatch[1]);
+      return { weight: value, weightUnit: 'גרם', originalWeight: value, originalUnit: 'גרם' };
+    } else if (nameLiterMatch) {
+      const value = parseFloat(nameLiterMatch[1]);
+      return { weight: value, weightUnit: 'ליטר', originalWeight: value, originalUnit: 'ליטר' };
+    } else if (nameMgMatch) {
+      const value = parseFloat(nameMgMatch[1]);
+      return { weight: value, weightUnit: 'מ"ג', originalWeight: value, originalUnit: 'מ"ג' };
+    } else if (nameMlMatch) {
+      const value = parseFloat(nameMlMatch[1]);
+      return { weight: value, weightUnit: 'מ"ל', originalWeight: value, originalUnit: 'מ"ל' };
+    }
+  }
+  
+  return { weight: 0, weightUnit: 'ק"ג', originalWeight: 0, originalUnit: 'ק"ג' };
 };
 
 // Transform raw data to product objects
@@ -94,7 +125,7 @@ const transformProducts = (jsonData) => {
   const products = [];
   
   jsonData.forEach((row, index) => {
-    const { weight, weightUnit } = parseWeight(row['משקל'], row['תאור פריט']);
+    const { weight, weightUnit, originalWeight, originalUnit } = parseWeight(row['משקל'], row['תאור פריט']);
     
     products.push({
       id: index,
@@ -103,7 +134,9 @@ const transformProducts = (jsonData) => {
       productName: row['תאור פריט'] || '',
       weight: weight,
       weightUnit: weightUnit,
-      originalWeight: row['משקל'],
+      originalWeight: originalWeight,
+      originalUnit: originalUnit,
+      originalWeightText: row['משקל'],
       salePrice: parseFloat(row['מחיר מכירה'] || row['מחיר']) || 0,
       brand: row['שם מותג'] || row['מותג'] || '',
       animalType: row['קבוצת על'] || row['קבוצה'] || '',
@@ -396,9 +429,21 @@ const AccordionFilter = ({
 };
 
 // Helper function to format weight with proper decimal places and always show ק"ג with quote
-const formatWeight = (weight, unit) => {
+const formatWeight = (weight, unit, originalWeight = null, originalUnit = null) => {
   if (!Number.isFinite(weight)) return '0';
-  // Always normalize kilogram unit to ק"ג
+  
+  // If we have original weight and unit, use those for display
+  if (originalWeight !== null && originalUnit !== null) {
+    if (originalUnit === 'גרם') {
+      return `${Math.round(originalWeight)} ${originalUnit}`;
+    } else if (originalUnit === 'ק"ג' || originalUnit === 'ליטר') {
+      return `${originalWeight.toFixed(1)} ${originalUnit}`;
+    } else {
+      return `${Math.round(originalWeight)} ${originalUnit}`;
+    }
+  }
+  
+  // Fallback to the old logic
   let displayUnit = unit;
   if (unit && (unit.replace(/["'׳״]/g, '').replace(/\s/g, '') === 'קג' || unit === 'קג')) {
     displayUnit = 'ק"ג';
@@ -1086,7 +1131,7 @@ const ProductCard = React.memo(function ProductCard({ product, index, selectedPr
           textAlign="right"
           style={{ direction: 'rtl', textAlign: 'right' }}
         >
-          <Text as="span" fontWeight="semibold">משקל:</Text> {formatWeight(product.weight, product.weightUnit)}
+          <Text as="span" fontWeight="semibold">משקל:</Text> {formatWeight(product.weight, product.weightUnit, product.originalWeight, product.originalUnit)}
         </Text>
       )}
 
@@ -1636,7 +1681,7 @@ function App() {
         
         setWeightRange([minWeight, maxWeight]);
         setWeightUnit('גרם');
-      } else if (randomProduct.weightUnit === 'מ"ל' || randomProduct.weightUnit === 'ml') {
+              } else if (randomProduct.weightUnit === 'מ"ל') {
         const ml = randomProduct.weight;
         if (ml <= 99) {
           minWeight = Math.max(0, ml - 10);
@@ -1667,6 +1712,23 @@ function App() {
         }
         setWeightRange([minWeight, maxWeight]);
         setWeightUnit('מ"ג');
+      } else if (randomProduct.weightUnit === 'ליטר') {
+        const liters = randomProduct.weight;
+        if (liters <= 5) {
+          minWeight = Math.max(0, liters - 1);
+          maxWeight = liters + 1;
+        } else if (liters <= 20) {
+          minWeight = Math.max(0, liters - 2);
+          maxWeight = liters + 2;
+        } else if (liters <= 50) {
+          minWeight = Math.max(0, liters - 5);
+          maxWeight = liters + 5;
+        } else {
+          minWeight = Math.max(0, liters - 10);
+          maxWeight = liters + 10;
+        }
+        setWeightRange([minWeight, maxWeight]);
+        setWeightUnit('ליטר');
       } else {
         // For kg and other units
         const kg = randomProduct.weight;
@@ -1688,14 +1750,14 @@ function App() {
     // Set active filters - only price, weight, internalCategory, animalType, and varietyOnly
     setActiveFilters({
       price: true,
-      weight: true,
+      weight: typeof randomProduct.weight === 'number' && randomProduct.weight > 0, // Only activate weight filter if product has weight
       internalCategory: !!randomProduct.internalCategory,
       animalType: !!randomProduct.animalType,
       // Keep other filters inactive
       brand: false,
       lifeStage: false,
       mainIngredient: false,
-      medicalIssue: false,
+      medicalIssue: !!randomProduct.medicalIssue && randomProduct.medicalIssue.trim() !== '', // Activate medical issue filter if product has medical issue
       qualityLevel: false,
       supplierName: false
     });
@@ -1799,48 +1861,8 @@ function App() {
               setProducts(products);
               setError(null);
               
-              // Build Fuse.js index here instead of in worker
-              console.log('🚀 Building Fuse.js index in main thread...');
-              try {
-                const Fuse = require('fuse.js');
-                const fuseConfig = {
-                  keys: [
-                    { name: 'productName', weight: 0.7 },
-                    { name: 'brand', weight: 0.5 },
-                    { name: 'animalType', weight: 0.3 },
-                    { name: 'mainIngredient', weight: 0.3 },
-                    { name: 'sku', weight: 0.2 },
-                    { name: 'barcode', weight: 0.2 }
-                  ],
-                  threshold: 0.3,
-                  includeScore: true,
-                  includeMatches: true
-                };
-                
-                const fuseIndex = new Fuse(products, fuseConfig);
-                const indexData = fuseIndex.getIndex();
-                const serializableIndex = {
-                  records: indexData.records,
-                  keys: indexData.keys,
-                  docs: indexData.docs
-                };
-                
-                console.log('💾 Saving Fuse.js index to IndexedDB...');
-                saveIndex(serializableIndex).then(() => {
-                  console.log('🚀 Index saved to IndexedDB successfully');
-                  toastRef.current({
-                    title: "אינדקס נשמר",
-                    description: "אינדקס החיפוש נשמר בדפדפן",
-                    status: "success",
-                    duration: 2000,
-                    isClosable: true,
-                  });
-                }).catch(error => {
-                  console.error('❌ Failed to save index:', error);
-                });
-              } catch (error) {
-                console.error('❌ Failed to build Fuse.js index:', error);
-              }
+              // The worker will handle building the index and send it via indexReady message
+              console.log('✅ Products loaded, waiting for index from worker...');
             }
             setLoading(false);
             worker.terminate();
@@ -2093,11 +2115,11 @@ function App() {
     }
     const searchTerm = searchQuery.toLowerCase();
     let results = products.filter(product => 
-      product.productName.toLowerCase().includes(searchTerm) ||
-      product.brand.toLowerCase().includes(searchTerm) ||
-      product.originalWeight?.toLowerCase().includes(searchTerm) ||
-      product.animalType.toLowerCase().includes(searchTerm) ||
-      product.internalCategory.toLowerCase().includes(searchTerm)
+      product.productName?.toLowerCase().includes(searchTerm) ||
+      product.brand?.toLowerCase().includes(searchTerm) ||
+      (product.originalWeightText && product.originalWeightText.toLowerCase().includes(searchTerm)) ||
+      product.animalType?.toLowerCase().includes(searchTerm) ||
+      product.internalCategory?.toLowerCase().includes(searchTerm)
     );
     
     // Apply variety filter to search results as well (since varietyOnly is the default behavior)
@@ -2161,8 +2183,14 @@ function App() {
         if (debouncedFilters.weightUnit === 'גרם') {
           // Product weight is already in grams, no conversion needed
           passes = product.weight >= debouncedFilters.weightRange[0] && product.weight <= debouncedFilters.weightRange[1];
-        } else if (debouncedFilters.weightUnit === 'ml') {
+        } else if (debouncedFilters.weightUnit === 'מ"ל') {
           // Product weight is already in ml, no conversion needed
+          passes = product.weight >= debouncedFilters.weightRange[0] && product.weight <= debouncedFilters.weightRange[1];
+        } else if (debouncedFilters.weightUnit === 'ליטר') {
+          // Product weight is already in liters, no conversion needed
+          passes = product.weight >= debouncedFilters.weightRange[0] && product.weight <= debouncedFilters.weightRange[1];
+        } else if (debouncedFilters.weightUnit === 'מ"ג') {
+          // Product weight is already in mg, no conversion needed
           passes = product.weight >= debouncedFilters.weightRange[0] && product.weight <= debouncedFilters.weightRange[1];
         } else {
           // For kg and other units, use the stored weight directly
@@ -2248,10 +2276,10 @@ function App() {
       console.time('results-filter');
       const filterTerm = debouncedResultsFilter.toLowerCase();
       filtered = filtered.filter(product => 
-        product.productName.toLowerCase().includes(filterTerm) ||
-        product.brand.toLowerCase().includes(filterTerm) ||
-        product.animalType.toLowerCase().includes(filterTerm) ||
-        product.internalCategory.toLowerCase().includes(filterTerm) ||
+        product.productName?.toLowerCase().includes(filterTerm) ||
+        product.brand?.toLowerCase().includes(filterTerm) ||
+        product.animalType?.toLowerCase().includes(filterTerm) ||
+        product.internalCategory?.toLowerCase().includes(filterTerm) ||
         product.mainIngredient?.toLowerCase().includes(filterTerm) ||
         product.medicalIssue?.toLowerCase().includes(filterTerm) ||
         product.qualityLevel?.toLowerCase().includes(filterTerm) ||
@@ -2493,10 +2521,13 @@ function App() {
   // For the slider min/max, use the product or all products depending on context
   let minWeight, maxWeight;
   if (selectedProduct && typeof selectedProduct.weight === 'number') {
-    if (weightUnit === 'גרם' && selectedProduct.weightUnit === 'גרם') {
+    if (selectedProduct.weightUnit === 'גרם') {
       const grams = selectedProduct.weight; // Weight is already in grams
-      minWeight = grams - 100;
+      minWeight = Math.max(0, grams - 100);
       maxWeight = grams + 100;
+    } else if (selectedProduct.weightUnit === 'ק"ג') {
+      minWeight = Math.max(0, selectedProduct.weight - 0.2);
+      maxWeight = selectedProduct.weight + 0.2;
     } else {
       minWeight = Math.max(0, selectedProduct.weight - 0.2);
       maxWeight = selectedProduct.weight + 0.2;
@@ -2515,7 +2546,7 @@ function App() {
             minWeight = 0;
         if (weightUnit === 'גרם') {
           maxWeight = 1000;
-        } else if (weightUnit === 'ליטר' || weightUnit === 'ml') {
+        } else if (weightUnit === 'ליטר' || weightUnit === 'מ"ל') {
           maxWeight = 1000;
         } else if (weightUnit === 'מ"ג') {
           maxWeight = 1000;
@@ -2571,7 +2602,7 @@ function App() {
   // Add final fallback for all min/max values before passing to slider/input
   const safeMinWeight = Number.isFinite(minWeight) ? minWeight : 0;
       const safeMaxWeight = Number.isFinite(maxWeight) ? maxWeight : (
-      weightUnit === 'גרם' || weightUnit === 'ליטר' || weightUnit === 'ml' || weightUnit === 'מ"ג' ? 1000 : 100
+              weightUnit === 'גרם' || weightUnit === 'ליטר' || weightUnit === 'מ"ל' || weightUnit === 'מ"ג' ? 1000 : 100
     );
   const safeMinPrice = Number.isFinite(minPrice) ? minPrice : 0;
   const safeMaxPrice = Number.isFinite(maxPrice) ? maxPrice : 100;
@@ -2771,10 +2802,7 @@ function App() {
         
         setWeightRange([minWeight, maxWeight]);
         setWeightUnit('גרם');
-      } else if (
-        product.weightUnit === 'מ"ל' ||
-        product.weightUnit === 'ml'
-      ) {
+      } else if (product.weightUnit === 'מ"ל') {
         // For milliliters, treat similar to grams
         const ml = product.weight; // Weight is already in ml
         if (ml <= 99) {
@@ -2793,6 +2821,24 @@ function App() {
         }
         setWeightRange([minWeight, maxWeight]);
         setWeightUnit('מ"ל');
+      } else if (product.weightUnit === 'ליטר') {
+        // For liters, treat similar to kg but with larger buffer
+        const liters = product.weight; // Weight is already in liters
+        if (liters <= 5) {
+          minWeight = Math.max(0, liters - 1);
+          maxWeight = liters + 1;
+        } else if (liters <= 20) {
+          minWeight = Math.max(0, liters - 2);
+          maxWeight = liters + 2;
+        } else if (liters <= 50) {
+          minWeight = Math.max(0, liters - 5);
+          maxWeight = liters + 5;
+        } else {
+          minWeight = Math.max(0, liters - 10);
+          maxWeight = liters + 10;
+        }
+        setWeightRange([minWeight, maxWeight]);
+        setWeightUnit('ליטר');
       } else if (
         product.weightUnit === 'מ"ג' ||
         product.weightUnit === 'mg'
@@ -2845,13 +2891,13 @@ function App() {
     // Only activate the default filters
     const newActiveFilters = {
       price: true,
-      weight: true,
+      weight: typeof product.weight === 'number' && product.weight > 0, // Only activate weight filter if product has weight
       animalType: true,
       internalCategory: true,
       brand: false,
       lifeStage: false,
       mainIngredient: false,
-      medicalIssue: false,
+      medicalIssue: !!product.medicalIssue && product.medicalIssue.trim() !== '', // Activate medical issue filter if product has medical issue
       supplierName: false,
       qualityLevel: false
     };
@@ -3018,11 +3064,17 @@ function App() {
       ]);
       
       // Set weight range based on current unit
-      if (weightUnit === 'גרם' || weightUnit === 'ml' || weightUnit === 'מ"ג') {
-        // Convert kg to grams/ml/mg
+      if (weightUnit === 'גרם' || weightUnit === 'מ"ל' || weightUnit === 'מ"ג') {
+        // Weight is already in grams/ml/mg
         setWeightRange([
-          Math.max(0, weightRangeObj.min * 1000 - 100),
-          weightRangeObj.max * 1000 + 100
+          Math.max(0, weightRangeObj.min - 100),
+          weightRangeObj.max + 100
+        ]);
+      } else if (weightUnit === 'ליטר') {
+        // Weight is already in liters
+        setWeightRange([
+          Math.max(0, weightRangeObj.min - 5),
+          weightRangeObj.max + 5
         ]);
       } else {
         // Keep in kg
@@ -3034,7 +3086,7 @@ function App() {
     } else {
       // Fallback to safe defaults if no data
       setPriceRange([0, 100]);
-      setWeightRange(weightUnit === 'גרם' || weightUnit === 'ml' || weightUnit === 'מ"ג' ? [0, 1000] : [0, 1]);
+      setWeightRange(weightUnit === 'גרם' || weightUnit === 'מ"ל' || weightUnit === 'מ"ג' ? [0, 1000] : weightUnit === 'ליטר' ? [0, 100] : [0, 1]);
     }
     
     // Clear selected product
@@ -3247,7 +3299,7 @@ function App() {
                         }
                       }}
                     >
-                      🗑️
+                      <Icon as={Trash} />
                     </Button>
                   </Tooltip>
                   <Tooltip label="בדוק מצב האינדקס (Ctrl+Shift+S)" placement="top">
@@ -3284,7 +3336,7 @@ function App() {
                         }
                       }}
                     >
-                      🔍
+                      <Icon as={CircleCheck} />
                     </Button>
                   </Tooltip>
                   <Tooltip label="בחר מוצר רנדומלי במגוון (Ctrl+Shift+R)" placement="top">
@@ -3301,7 +3353,7 @@ function App() {
                         }
                       }}
                     >
-                      🎲
+                      <Icon as={Dices} />
                     </Button>
                   </Tooltip>
                 </Flex>
@@ -3368,7 +3420,7 @@ function App() {
                       onChange={([min, max]) => {
                         setWeightRange([min, max]);
                       }}
-                      step={weightUnit === 'גרם' || weightUnit === 'ליטר' || weightUnit === 'ml' || weightUnit === 'מ"ג' ? 1 : 0.01}
+                      step={weightUnit === 'גרם' || weightUnit === 'ליטר' || weightUnit === 'מ"ל' || weightUnit === 'מ"ג' ? 1 : 0.01}
                       unit={weightUnit}
                       label="טווח משקל"
                       disabled={!activeFilters.weight}

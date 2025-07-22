@@ -61,7 +61,7 @@ const createSearchWorker = () => {
         const searchableText = [
           product.productName?.toLowerCase(),
           product.brand?.toLowerCase(),
-          product.originalWeight?.toLowerCase(),
+          product.originalWeightText?.toLowerCase(),
           product.sku?.toLowerCase(),
           product.barcode?.toLowerCase()
         ].filter(Boolean).join(' ');
@@ -331,14 +331,14 @@ const createSearchWorker = () => {
       
       // Helper function to check if a word matches the query
       const wordMatches = (text, query) => {
-        if (!text || !query) return false;
+        if (!text || !query || typeof text !== 'string') return false;
         const words = text.toLowerCase().split(/\\s/);
         return words.some(word => word === query || word.startsWith(query));
       };
       
       // Helper function to check how many query words match
       const countMatchingWords = (text) => {
-        if (!text || queryWords.length === 0) return 0;
+        if (!text || queryWords.length === 0 || typeof text !== 'string') return 0;
         const productWords = text.toLowerCase().split(/\\s/);
         return queryWords.filter(queryWord => 
           productWords.some(productWord => 

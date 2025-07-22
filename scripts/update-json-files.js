@@ -60,6 +60,7 @@ function parseWeight(weightText, productName = '') {
     const gramMatch = weightText.match(/(\d+(?:\.\d+)?)\s*גרם/);
     const literMatch = weightText.match(/(\d+(?:\.\d+)?)\s*ליטר/);
     const mgMatch = weightText.match(/(\d+(?:\.\d+)?)\s*מ"?ג/);
+    const mlMatch = weightText.match(/(\d+(?:\.\d+)?)\s*מ"?ל/);
     
     if (kgMatch) {
       weight = parseFloat(kgMatch[1]);
@@ -73,12 +74,15 @@ function parseWeight(weightText, productName = '') {
     } else if (mgMatch) {
       weight = parseFloat(mgMatch[1]);
       weightUnit = 'מ"ג';
+    } else if (mlMatch) {
+      weight = parseFloat(mlMatch[1]);
+      weightUnit = 'מ"ל';
     } else {
       // Try to parse as pure number (assume grams if small, kg if large)
       const numWeight = parseFloat(weightText);
       if (!isNaN(numWeight)) {
         weight = numWeight;
-        weightUnit = numWeight < 10 ? 'ק"ג' : 'גרם';
+        weightUnit = numWeight < 100 ? 'גרם' : 'ק"ג';
       }
     }
   }
@@ -106,7 +110,7 @@ function parseWeight(weightText, productName = '') {
       weightUnit = 'מ"ג';
     } else if (matchMl) {
       weight = parseFloat(matchMl[1]);
-      weightUnit = 'ml';
+      weightUnit = 'מ"ל';
     }
   }
 

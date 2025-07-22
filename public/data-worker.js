@@ -54,6 +54,8 @@ function parseWeight(weightText, productName = '') {
 
   let weight = 0;
   let weightUnit = '';
+  let originalWeight = 0;
+  let originalUnit = '';
   
   if (weightText) {
     // Try to extract weight and unit from various formats
@@ -61,25 +63,47 @@ function parseWeight(weightText, productName = '') {
     const gramMatch = weightText.match(/(\d+(?:\.\d+)?)\s*גרם/);
     const literMatch = weightText.match(/(\d+(?:\.\d+)?)\s*ליטר/);
     const mgMatch = weightText.match(/(\d+(?:\.\d+)?)\s*מ"?ג/);
+    const mlMatch = weightText.match(/(\d+(?:\.\d+)?)\s*מ"?ל/);
     
     if (kgMatch) {
-      weight = parseFloat(kgMatch[1]);
+      originalWeight = parseFloat(kgMatch[1]);
+      originalUnit = 'ק"ג';
+      weight = originalWeight; // Keep in kg for calculations
       weightUnit = 'ק"ג';
     } else if (gramMatch) {
-      weight = parseFloat(gramMatch[1]);
+      originalWeight = parseFloat(gramMatch[1]);
+      originalUnit = 'גרם';
+      weight = originalWeight; // Keep in grams for calculations
       weightUnit = 'גרם';
     } else if (literMatch) {
-      weight = parseFloat(literMatch[1]);
+      originalWeight = parseFloat(literMatch[1]);
+      originalUnit = 'ליטר';
+      weight = originalWeight; // Keep in liters for calculations
       weightUnit = 'ליטר';
     } else if (mgMatch) {
-      weight = parseFloat(mgMatch[1]);
+      originalWeight = parseFloat(mgMatch[1]);
+      originalUnit = 'מ"ג';
+      weight = originalWeight; // Keep in mg for calculations
       weightUnit = 'מ"ג';
+    } else if (mlMatch) {
+      originalWeight = parseFloat(mlMatch[1]);
+      originalUnit = 'מ"ל';
+      weight = originalWeight; // Keep in ml for calculations
+      weightUnit = 'מ"ל';
     } else {
       // Try to parse as pure number (assume grams if small, kg if large)
       const numWeight = parseFloat(weightText);
       if (!isNaN(numWeight)) {
-        weight = numWeight;
-        weightUnit = numWeight < 10 ? 'ק"ג' : 'גרם';
+        originalWeight = numWeight;
+        if (numWeight < 100) {
+          originalUnit = 'גרם';
+          weight = numWeight; // Keep in grams for calculations
+          weightUnit = 'גרם';
+        } else {
+          originalUnit = 'ק"ג';
+          weight = numWeight; // Keep in kg for calculations
+          weightUnit = 'ק"ג';
+        }
       }
     }
   }
@@ -94,24 +118,34 @@ function parseWeight(weightText, productName = '') {
     let matchMl = productName.match(/(\d+(?:\.\d+)?)\s*מ"?ל/);
     
     if (matchKg) {
-      weight = parseFloat(matchKg[1]);
+      originalWeight = parseFloat(matchKg[1]);
+      originalUnit = 'ק"ג';
+      weight = originalWeight; // Keep in kg for calculations
       weightUnit = 'ק"ג';
     } else if (matchGram) {
-      weight = parseFloat(matchGram[1]);
+      originalWeight = parseFloat(matchGram[1]);
+      originalUnit = 'גרם';
+      weight = originalWeight; // Keep in grams for calculations
       weightUnit = 'גרם';
     } else if (matchLiter) {
-      weight = parseFloat(matchLiter[1]);
+      originalWeight = parseFloat(matchLiter[1]);
+      originalUnit = 'ליטר';
+      weight = originalWeight; // Keep in liters for calculations
       weightUnit = 'ליטר';
     } else if (matchMg) {
-      weight = parseFloat(matchMg[1]);
+      originalWeight = parseFloat(matchMg[1]);
+      originalUnit = 'מ"ג';
+      weight = originalWeight; // Keep in mg for calculations
       weightUnit = 'מ"ג';
     } else if (matchMl) {
-      weight = parseFloat(matchMl[1]);
-      weightUnit = 'ml';
+      originalWeight = parseFloat(matchMl[1]);
+      originalUnit = 'מ"ל';
+      weight = originalWeight; // Keep in ml for calculations
+      weightUnit = 'מ"ל';
     }
   }
 
-  const result = { weight, weightUnit };
+  const result = { weight, weightUnit, originalWeight, originalUnit };
   weightCache.set(cacheKey, result);
   return result;
 }
@@ -170,7 +204,7 @@ function filterProducts(products, filters, searchQuery, selectedProduct) {
         queryWords.every(word =>
           product.productName?.toLowerCase().includes(word) ||
           product.brand?.toLowerCase().includes(word) ||
-          product.originalWeight?.toLowerCase().includes(word) ||
+          product.originalWeightText?.toLowerCase().includes(word) ||
           product.sku?.toLowerCase().includes(word) ||
           product.barcode?.toLowerCase().includes(word)
         )
@@ -321,7 +355,7 @@ function transformProducts(jsonData) {
     
     batch.forEach((row, batchIndex) => {
       const index = i + batchIndex;
-      const { weight, weightUnit } = parseWeight(row['משקל'], row['תאור פריט']);
+      const { weight, weightUnit, originalWeight, originalUnit } = parseWeight(row['משקל'], row['תאור פריט']);
       
       products.push({
         id: index,
@@ -330,7 +364,9 @@ function transformProducts(jsonData) {
         productName: row['תאור פריט'] || '',
         weight: weight,
         weightUnit: weightUnit,
-        originalWeight: row['משקל'],
+        originalWeight: originalWeight,
+        originalUnit: originalUnit,
+        originalWeightText: row['משקל'],
         salePrice: parseFloat(row['מחיר מכירה'] || row['מחיר']) || 0,
         brand: row['שם מותג'] || row['מותג'] || '',
         animalType: row['קבוצת על'] || row['קבוצה'] || '',
