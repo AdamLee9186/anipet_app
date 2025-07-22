@@ -383,8 +383,8 @@ self.onmessage = function(e) {
         // We'll set the cached index after loading the data
       }
       
-      // Load data in priority order: .min.json.gz -> .json.br -> .json.gz -> .min.json (fallback)
-      // console.log('[Worker] Starting data loading with priority order...');
+      // Load data in priority order: .min.json -> .json (fallback)
+      console.log('[Worker] Starting data loading with priority order...');
       
       // Helper function to process loaded data
       async function processLoadedData(jsonData, source) {
@@ -474,45 +474,44 @@ self.onmessage = function(e) {
             
             // Always create a new index since we have the products data
             console.log('🚀 No cached index available, building new Fuse index from products data');
-              fuseIndex = new Fuse(allProducts, fuseConfig);
-              
-              // Get the index data and extract only serializable parts
-              const indexData = fuseIndex.getIndex();
-              const serializableIndex = {
+            fuseIndex = new Fuse(allProducts, fuseConfig);
+            
+            // Get the index data and extract only serializable parts
+            const indexData = fuseIndex.getIndex();
+            const serializableIndex = {
+              records: indexData.records,
+              keys: indexData.keys,
+              docs: indexData.docs
+            };
+            
+            console.log('📤 Sending new index to main thread');
+            console.log('📊 Index data size:', JSON.stringify(serializableIndex).length, 'bytes');
+            console.log('📊 Index data type:', typeof serializableIndex);
+            console.log('📊 Index data keys:', Object.keys(serializableIndex || {}));
+            
+            console.log('📤 Sending serializable index to main thread');
+            console.log('📊 Serializable index size:', JSON.stringify(serializableIndex).length, 'bytes');
+            
+            try {
+              self.postMessage({
+                type: 'indexReady',
+                payload: serializableIndex,
+                skipSave: false
+              });
+              console.log('✅ New index message sent to main thread');
+            } catch (error) {
+              console.error('❌ Failed to send index via postMessage:', error);
+              // Try with even more minimal data
+              const minimalIndex = {
                 records: indexData.records,
-                keys: indexData.keys,
-                docs: indexData.docs
+                keys: indexData.keys
               };
-              
-              console.log('📤 Sending new index to main thread');
-              console.log('📊 Index data size:', JSON.stringify(serializableIndex).length, 'bytes');
-              console.log('📊 Index data type:', typeof serializableIndex);
-              console.log('📊 Index data keys:', Object.keys(serializableIndex || {}));
-              
-              console.log('📤 Sending serializable index to main thread');
-              console.log('📊 Serializable index size:', JSON.stringify(serializableIndex).length, 'bytes');
-              
-              try {
-                self.postMessage({
-                  type: 'indexReady',
-                  payload: serializableIndex,
-                  skipSave: false
-                });
-                console.log('✅ New index message sent to main thread');
-              } catch (error) {
-                console.error('❌ Failed to send index via postMessage:', error);
-                // Try with even more minimal data
-                const minimalIndex = {
-                  records: indexData.records,
-                  keys: indexData.keys
-                };
-                self.postMessage({
-                  type: 'indexReady',
-                  payload: minimalIndex,
-                  skipSave: false
-                });
-                console.log('✅ Minimal index message sent to main thread');
-              }
+              self.postMessage({
+                type: 'indexReady',
+                payload: minimalIndex,
+                skipSave: false
+              });
+              console.log('✅ Minimal index message sent to main thread');
             }
           } catch (error) {
             console.warn('Fuse.js failed to create index:', error);
@@ -554,83 +553,24 @@ self.onmessage = function(e) {
         });
       }
       
-      // Try 1: .min.json.gz (highest priority)
-      console.log('[Worker] Attempting to load .min.json.gz file...');
-      fetch('/data/anipet_products_optimized.min.json.gz')
+      // Try 1: .min.json (highest priority - smaller and faster)
+      console.log('[Worker] Attempting to load .min.json file...');
+      fetch('/data/anipet_products_optimized.min.json')
         .then(response => {
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
-          // console.log('[Worker] Successfully fetched .min.json.gz file, decompressing...');
-          reportProgress('Decompressing data', 25, 100);
-          return response.arrayBuffer();
+          console.log('[Worker] Successfully fetched .min.json file, parsing...');
+          reportProgress('Parsing JSON data', 25, 100);
+          return response.json();
         })
-        .then(arrayBuffer => {
-          if (typeof pako !== 'undefined') {
-            // console.log('[Worker] Decompressing .min.json.gz with pako...');
-            const decompressed = pako.inflate(arrayBuffer, { to: 'string' });
-            return JSON.parse(decompressed);
-          } else {
-            throw new Error('pako library not available for decompression');
-          }
-        })
-        .then(jsonData => processLoadedData(jsonData, '.min.json.gz file'))
+        .then(jsonData => processLoadedData(jsonData, '.min.json file'))
         .catch(error => {
-          console.warn('Failed to load .min.json.gz, trying .json.br:', error);
+          console.warn('Failed to load .min.json, trying fallback .json:', error);
           
-          // Try 2: .json.br
-          // console.log('[Worker] Attempting to load .json.br file...');
-          return fetch('/data/anipet_products_optimized.json.br')
-            .then(response => {
-              if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-              }
-              // console.log('[Worker] Successfully fetched .json.br file, decompressing...');
-              reportProgress('Decompressing data', 25, 100);
-              return response.arrayBuffer();
-            })
-            .then(arrayBuffer => {
-              if (typeof pako !== 'undefined') {
-                // console.log('[Worker] Decompressing .json.br with pako...');
-                const decompressed = pako.inflate(arrayBuffer, { to: 'string' });
-                return JSON.parse(decompressed);
-              } else {
-                throw new Error('pako library not available for brotli decompression');
-              }
-            })
-            .then(jsonData => processLoadedData(jsonData, '.json.br file'));
-        })
-        .catch(error => {
-          console.warn('Failed to load .json.br, trying .json.gz:', error);
-          
-          // Try 3: .json.gz
-          // console.log('[Worker] Attempting to load .json.gz file...');
-          return fetch('/data/anipet_products_optimized.json.gz')
-            .then(response => {
-              if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-              }
-              // console.log('[Worker] Successfully fetched .json.gz file, decompressing...');
-              reportProgress('Decompressing data', 25, 100);
-              return response.arrayBuffer();
-            })
-            .then(arrayBuffer => {
-              if (typeof pako !== 'undefined') {
-                // console.log('[Worker] Decompressing .json.gz with pako...');
-                const decompressed = pako.inflate(arrayBuffer, { to: 'string' });
-                return JSON.parse(decompressed);
-              } else {
-                throw new Error('pako library not available for gzip decompression');
-              }
-            })
-            .then(jsonData => processLoadedData(jsonData, '.json.gz file'));
-        })
-        .catch(error => {
-          console.warn('Failed to load compressed files, trying fallback .min.json:', error);
-          
-          // Try 4: .min.json (fallback)
-          // console.log('[Worker] Attempting to load fallback .min.json file...');
-          return fetch('/data/anipet_products_optimized.min.json')
+          // Try 2: .json (fallback)
+          console.log('[Worker] Attempting to load fallback .json file...');
+          return fetch('/data/anipet_products_optimized.json')
             .then(response => {
               if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -638,7 +578,7 @@ self.onmessage = function(e) {
               reportProgress('Parsing JSON data', 25, 100);
               return response.json();
             })
-            .then(jsonData => processLoadedData(jsonData, 'fallback .min.json file'));
+            .then(jsonData => processLoadedData(jsonData, 'fallback .json file'));
         })
         .catch(error => {
           console.error('All data loading attempts failed:', error);
