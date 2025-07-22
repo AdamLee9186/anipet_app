@@ -63,9 +63,15 @@ const ChakraRangeSlider = ({
   };
 
   const displayValue = (val) => {
-    // Show up to 2 decimals, but no trailing zeros
+    // Show up to 1 decimal for price, 2 decimals for others, but no trailing zeros
     if (typeof val === 'number') {
-      return Number(val.toFixed(2)).toString();
+      if (unit === '₪') {
+        // For price, show only 1 decimal place
+        return Number(val.toFixed(1)).toString();
+      } else {
+        // For other units, show up to 2 decimals
+        return Number(val.toFixed(2)).toString();
+      }
     }
     return val;
   };

@@ -2,6 +2,7 @@
   "name": "pet-store-app",
   "version": "0.1.0",
   "private": true,
+  "homepage": ".",
   "description": "Pet store app with search index caching for improved performance",
   "dependencies": {
     "@chakra-ui/hooks": "^2.2.1",

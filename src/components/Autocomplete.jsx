@@ -55,89 +55,68 @@ const createSearchWorker = () => {
         return;
       }
       
-      // Process products in chunks to avoid blocking
-      const chunkSize = 100;
-      let processedCount = 0;
-      
-      function processChunk() {
-        const endIndex = Math.min(processedCount + chunkSize, products.length);
+      // Process all products at once for now (simpler)
+      for (let i = 0; i < products.length; i++) {
+        const product = products[i];
+        const searchableText = [
+          product.productName?.toLowerCase(),
+          product.brand?.toLowerCase(),
+          product.originalWeight?.toLowerCase(),
+          product.sku?.toLowerCase(),
+          product.barcode?.toLowerCase()
+        ].filter(Boolean).join(' ');
         
-        for (let i = processedCount; i < endIndex; i++) {
-          const product = products[i];
-          const searchableText = [
-            product.productName?.toLowerCase(),
-            product.brand?.toLowerCase(),
-            product.originalWeight?.toLowerCase(),
-            product.sku?.toLowerCase(),
-            product.barcode?.toLowerCase()
-          ].filter(Boolean).join(' ');
-          
-          // Index by words (only words with 3+ characters for better precision)
-          const words = searchableText.split(/\\s/).filter(word => word.length >= 3);
-          words.forEach(word => {
-            // Index the full word
-            if (!searchIndex.has(word)) {
-              searchIndex.set(word, new Set());
-            }
-            searchIndex.get(word).add(i);
-            
-            // Only index prefixes for autocomplete (3-6 characters max)
-            for (let j = 3; j <= Math.min(word.length, 6); j++) {
-              const prefix = word.substring(0, j);
-              if (!searchIndex.has(prefix)) {
-                searchIndex.set(prefix, new Set());
-              }
-              searchIndex.get(prefix).add(i);
-            }
-          });
-          
-          // Index all filter values for shortcuts
-          const filterFields = [
-            { field: 'brand', type: 'brand', label: 'מותג' },
-            { field: 'supplierName', type: 'supplierName', label: 'ספק' },
-            { field: 'lifeStage', type: 'lifeStage', label: 'גיל' },
-            { field: 'parentCategory', type: 'parentCategory', label: 'קבוצה' },
-            { field: 'internalCategory', type: 'internalCategory', label: 'קטגוריה' },
-            { field: 'mainIngredient', type: 'mainIngredient', label: 'מרכיב עיקרי' },
-            { field: 'medicalIssue', type: 'medicalIssue', label: 'בעיה רפואית' },
-            { field: 'qualityLevel', type: 'qualityLevel', label: 'איכות' }
-          ];
-          
-          filterFields.forEach(({ field, type, label }) => {
-            if (product[field]) {
-              const valueLower = product[field].toLowerCase();
-              const key = \`\${type}:\${valueLower}\`;
-              
-              if (!filterIndex.has(key)) {
-                filterIndex.set(key, {
-                  type: type,
-                  value: product[field],
-                  label: label,
-                  count: 0
-                });
-              }
-              filterIndex.get(key).count++;
-            }
-          });
-        }
-        
-        processedCount = endIndex;
-        
-        // Continue processing if there are more products
-        if (processedCount < products.length) {
-          if (typeof requestIdleCallback !== 'undefined') {
-            requestIdleCallback(processChunk, { timeout: 50 });
-          } else {
-            setTimeout(processChunk, 0);
+        // Index by words (only words with 3+ characters for better precision)
+        const words = searchableText.split(/\\s/).filter(word => word.length >= 3);
+        words.forEach(word => {
+          // Index the full word
+          if (!searchIndex.has(word)) {
+            searchIndex.set(word, new Set());
           }
-        } else {
-          console.timeEnd('build-search-index');
-          console.log('Search index built successfully');
-        }
+          searchIndex.get(word).add(i);
+          
+          // Only index prefixes for autocomplete (3-6 characters max)
+          for (let j = 3; j <= Math.min(word.length, 6); j++) {
+            const prefix = word.substring(0, j);
+            if (!searchIndex.has(prefix)) {
+              searchIndex.set(prefix, new Set());
+            }
+            searchIndex.get(prefix).add(i);
+          }
+        });
+        
+        // Index all filter values for shortcuts
+        const filterFields = [
+          { field: 'brand', type: 'brand', label: 'מותג' },
+          { field: 'supplierName', type: 'supplierName', label: 'ספק' },
+          { field: 'lifeStage', type: 'lifeStage', label: 'גיל' },
+          { field: 'parentCategory', type: 'parentCategory', label: 'קבוצה' },
+          { field: 'internalCategory', type: 'internalCategory', label: 'קטגוריה' },
+          { field: 'mainIngredient', type: 'mainIngredient', label: 'מרכיב עיקרי' },
+          { field: 'medicalIssue', type: 'medicalIssue', label: 'בעיה רפואית' },
+          { field: 'qualityLevel', type: 'qualityLevel', label: 'איכות' }
+        ];
+        
+        filterFields.forEach(({ field, type, label }) => {
+          if (product[field]) {
+            const valueLower = product[field].toLowerCase();
+            const key = \`\${type}:\${valueLower}\`;
+            
+            if (!filterIndex.has(key)) {
+              filterIndex.set(key, {
+                type: type,
+                value: product[field],
+                label: label,
+                count: 0
+              });
+            }
+            filterIndex.get(key).count++;
+          }
+        });
       }
       
-      // Start processing
-      processChunk();
+      console.timeEnd('build-search-index');
+      console.log('Search index built successfully with', searchIndex.size, 'entries');
     }
     
     // Cache management functions
@@ -441,15 +420,18 @@ const createSearchWorker = () => {
       switch (type) {
         case 'init':
           products = data.products;
-          // Don't build index here - use the one from IndexedDB
-          // Just mark as ready
+          console.log('Worker received products:', products.length);
+          // Build search index for autocomplete
+          buildSearchIndex();
           self.postMessage({ type: 'ready' });
           break;
           
         case 'search':
+          console.log('Worker received search request:', data.query, 'Index size:', searchIndex.size);
           // Only search if we have a valid query and index is ready
           if (data.query && data.query.length >= 2 && searchIndex.size > 0) {
             const searchData = searchProducts(data.query);
+            console.log('Search results:', searchData.results.length, 'shortcuts:', searchData.shortcuts.length);
             self.postMessage({ 
               type: 'searchResults', 
               results: searchData.results,
@@ -458,6 +440,7 @@ const createSearchWorker = () => {
             });
           } else {
             // If index is not ready, return empty results
+            console.log('Index not ready or query too short');
             self.postMessage({ 
               type: 'searchResults', 
               results: [],
@@ -514,7 +497,7 @@ const MemoizedRow = React.memo(function MemoizedRow({ item, isActive, isLast, on
       {(item.salePrice !== undefined || item.sku || (item.barcode && item.barcode !== item.sku)) && (
         <HStack spacing={2} wrap="wrap" fontSize="xs" color="gray.700">
           {item.salePrice !== undefined && (
-            <Text>מחיר: <Text as="span" fontWeight="bold">₪{item.salePrice?.toFixed(2)}</Text></Text>
+            <Text>מחיר: <Text as="span" fontWeight="bold">₪{item.salePrice?.toFixed(1)}</Text></Text>
           )}
           {item.sku && (
             <Text>
@@ -740,9 +723,11 @@ const Autocomplete = React.forwardRef(function Autocomplete({
     
     worker.onmessage = (e) => {
       const { type, results: searchResults, shortcuts, error } = e.data;
+      console.log('Worker message received:', type, { resultsLength: searchResults?.length, shortcutsLength: shortcuts?.length });
       
       switch (type) {
         case 'ready':
+          console.log('Worker is ready');
           setIsWorkerReady(true);
           break;
         case 'indexReady':
@@ -750,6 +735,7 @@ const Autocomplete = React.forwardRef(function Autocomplete({
           console.log('Search index is ready');
           break;
         case 'searchResults':
+          console.log('Search results received:', searchResults?.length, 'shortcuts:', shortcuts?.length);
           setResults(searchResults);
           setShortcuts(shortcuts); // Update shortcuts state
           setActiveIdx(0);
@@ -766,11 +752,11 @@ const Autocomplete = React.forwardRef(function Autocomplete({
     };
     
     // Send products to worker immediately when products are loaded
-    console.log('Sending products to worker for indexing...');
+    console.log('Sending products to worker for indexing...', { productsLength: products.length, firstProduct: products[0] });
     worker.postMessage({ type: 'init', data: { products } });
     
-    // Mark as ready immediately since we don't build index here anymore
-    setIsWorkerReady(true);
+    // Don't mark as ready immediately - wait for worker to be ready
+    // setIsWorkerReady(true);
     
     return () => {
       // Don't terminate worker on every products change
@@ -796,6 +782,7 @@ const Autocomplete = React.forwardRef(function Autocomplete({
         
         // לא מבצעים חיפוש על פחות מ-3 תווים
         if (!q || q.length < 3 || !isWorkerReady || !workerRef.current) {
+          console.log('Search skipped:', { query: q, isWorkerReady, hasWorker: !!workerRef.current });
           setResults([]);
           setShortcuts([]);
           setActiveIdx(-1);

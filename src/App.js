@@ -37,6 +37,10 @@ import copy from 'copy-to-clipboard';
 import Masonry from 'react-masonry-css';
 import { getFullSizeImageUrl } from './utils/getFullSizeImageUrl';
 import { saveIndex, loadIndex, clearIndex } from './utils/indexedDb';
+import { getUniqueValues } from './dataLoader';
+
+// Import pako for decompression
+const pako = window.pako;
 
 // Lazy load heavy components
 const Autocomplete = lazy(() => import('./components/Autocomplete'));
@@ -45,6 +49,77 @@ const OptimizedImage = lazy(() => import('./components/ImageWithPreview'));
 
 // Helper function to normalize supplier names (trim and remove all spaces)
 const normalizeSupplier = str => (str || '').trim().replace(/\s+/g, '');
+
+// Helper function to parse weight from text
+const parseWeight = (weightText, productName = '') => {
+  if (!weightText) return { weight: 0, weightUnit: 'ק"ג' };
+  
+  // Remove common prefixes and clean up the text
+  let cleaned = weightText.toString().replace(/^[^0-9]*/, '').trim();
+  
+  // Extract number and unit
+  const match = cleaned.match(/^([0-9]+\.?[0-9]*)\s*([ק"גגרםmlק"לליטר])/);
+  if (match) {
+    const value = parseFloat(match[1]);
+    const unit = match[2];
+    
+    // Convert to kg for consistency
+    if (unit === 'גרם' || unit === 'g') {
+      return { weight: value / 1000, weightUnit: 'ק"ג' };
+    } else if (unit === 'ml' || unit === 'ק"ל' || unit === 'ליטר') {
+      return { weight: value, weightUnit: 'ליטר' };
+    } else {
+      return { weight: value, weightUnit: 'ק"ג' };
+    }
+  }
+  
+  // Try to extract just a number
+  const numberMatch = cleaned.match(/^([0-9]+\.?[0-9]*)/);
+  if (numberMatch) {
+    const value = parseFloat(numberMatch[1]);
+    // Assume grams if it's a small number, kg if it's larger
+    if (value < 100) {
+      return { weight: value / 1000, weightUnit: 'ק"ג' };
+    } else {
+      return { weight: value, weightUnit: 'ק"ג' };
+    }
+  }
+  
+  return { weight: 0, weightUnit: 'ק"ג' };
+};
+
+// Transform raw data to product objects
+const transformProducts = (jsonData) => {
+  const products = [];
+  
+  jsonData.forEach((row, index) => {
+    const { weight, weightUnit } = parseWeight(row['משקל'], row['תאור פריט']);
+    
+    products.push({
+      id: index,
+      sku: row['מק"ט'] || row['מק""ט'] || row['קוד פריט'] || '',
+      barcode: row['ברקוד'] || '',
+      productName: row['תאור פריט'] || '',
+      weight: weight,
+      weightUnit: weightUnit,
+      originalWeight: row['משקל'],
+      salePrice: parseFloat(row['מחיר מכירה'] || row['מחיר']) || 0,
+      brand: row['שם מותג'] || row['מותג'] || '',
+      animalType: row['קבוצת על'] || row['קבוצה'] || '',
+      lifeStage: row['גיל (גור בוגר וכו\')'] || row['גיל'] || '',
+      internalCategory: row['קטגוריה פנימית'] || row['קטגוריה'] || '',
+      mainIngredient: row['ממרכיב עיקרי'] || row['מרכיב'] || '',
+      medicalIssue: row['בעיה רפואית'] || '',
+      qualityLevel: row['רמה / איכות'] || row['איכות'] || '',
+      supplierName: row['שם ספק ראשי'] || row['ספק'] || '',
+      participatesInVariety: row['משתתף במגוון'] || '',
+      imageUrl: row['Image URL'] || '',
+      productUrl: row['Product URL'] || ''
+    });
+  });
+  
+  return products;
+};
 
 // Dog loading animation component
 const DogLoadingAnimation = ({ title, subtitle }) => {
@@ -997,7 +1072,7 @@ const ProductCard = React.memo(function ProductCard({ product, index, selectedPr
         textAlign="right"
         style={{ direction: 'rtl', textAlign: 'right' }}
       >
-        ₪{product.salePrice?.toFixed(2) || '0.00'}
+        ₪{product.salePrice?.toFixed(1) || '0.0'}
       </Text>
 
       {/* Weight */}
@@ -1379,32 +1454,84 @@ function App() {
   const [sortBy, setSortBy] = useState('similarity'); // Default sort by similarity
   const [displayLimit, setDisplayLimit] = useState(30); // Number of products to display
   const [resultsFilter, setResultsFilter] = useState(''); // Filter for results when 30+ products
-  const defaultViewMode = useBreakpointValue({ base: 'list', md: 'grid' });
+  // defaultViewMode is no longer needed since we handle auto mode manually
   
   // Load saved view mode from localStorage or use default based on screen size
   const getInitialViewMode = () => {
     const savedViewMode = localStorage.getItem('petStoreViewMode');
-    if (savedViewMode && (savedViewMode === 'grid' || savedViewMode === 'list')) {
-      return savedViewMode;
-    }
-    return defaultViewMode;
+    console.log('🎯 getInitialViewMode:', { savedViewMode, windowWidth: window.innerWidth });
+    
+    // Always use screen size for initial view mode
+    const isMobile = window.innerWidth < 768;
+    const autoMode = isMobile ? 'list' : 'grid';
+    console.log('📱 Using auto mode for initial load:', autoMode, 'for screen width:', window.innerWidth);
+    return autoMode;
   };
   
   const [viewMode, setViewMode] = useState(getInitialViewMode); // 'grid' or 'list' view mode
   const [debouncedResultsFilter, setDebouncedResultsFilter] = useState(''); // Debounced version for actual filtering
   
-  // Save view mode to localStorage when it changes
-  useEffect(() => {
-    localStorage.setItem('petStoreViewMode', viewMode);
-  }, [viewMode]);
+  // Don't auto-save view mode changes - only save when user manually clicks buttons
+  // useEffect(() => {
+  //   console.log('💾 Auto-saving view mode to localStorage:', viewMode);
+  //   localStorage.setItem('petStoreViewMode', viewMode);
+  // }, [viewMode]);
   
-  // Set default view mode based on screen size only if no saved preference
+  // This useEffect is no longer needed since we handle auto mode in the resize handler
+
+  // Auto-switch view mode based on screen size
   useEffect(() => {
-    const savedViewMode = localStorage.getItem('petStoreViewMode');
-    if (!savedViewMode) {
-      setViewMode(defaultViewMode);
-    }
-  }, [defaultViewMode]);
+    const handleResize = () => {
+      const savedViewMode = localStorage.getItem('petStoreViewMode');
+      console.log('🔄 Resize handler:', { 
+        windowWidth: window.innerWidth, 
+        savedViewMode, 
+        currentViewMode: viewMode 
+      });
+      
+      // Always auto-switch based on screen size, regardless of saved preference
+      const isMobile = window.innerWidth < 768; // md breakpoint
+      const newViewMode = isMobile ? 'list' : 'grid';
+      
+      // Only change if the new mode is different from current
+      if (viewMode !== newViewMode) {
+        console.log('📱 Auto-switching view mode:', { isMobile, newViewMode, reason: 'screen size change' });
+        setViewMode(newViewMode);
+      } else {
+        console.log('📱 View mode already correct for screen size:', newViewMode);
+      }
+    };
+
+    // Set initial view mode based on current screen size
+    console.log('🚀 Initial resize handler call');
+    handleResize();
+
+    // Add resize listener with debouncing
+    let resizeTimeout;
+    const debouncedResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(handleResize, 100);
+    };
+
+    window.addEventListener('resize', debouncedResize);
+    return () => {
+      window.removeEventListener('resize', debouncedResize);
+      clearTimeout(resizeTimeout);
+    };
+  }, []); // Remove viewMode dependency to prevent infinite loop
+
+  // Function to handle view mode toggle
+  const handleViewModeToggle = (newMode) => {
+    console.log('🔘 View mode toggle clicked:', { newMode, currentViewMode: viewMode });
+    setViewMode(newMode);
+    // Save preference only when user manually clicks a button
+    localStorage.setItem('petStoreViewMode', newMode);
+    console.log('💾 Saved manual preference to localStorage');
+  };
+
+
+
+
   const [isResultsFiltering, setIsResultsFiltering] = useState(false); // Loading state for results filter
   const searchInputRef = useRef(null);
   const filteringStartRef = useRef(null);
@@ -1412,6 +1539,166 @@ function App() {
 
   // Calculate active similarity fields based on active filters
   const activeSimilarityFields = getActiveSimilarityFields(activeFilters);
+
+  // פונקציה לבחירת מוצר רנדומלי מתוך המוצרים במגוון
+  const handleRandomProduct = useCallback(() => {
+    // סינון מוצרים שיש להם participatesInVariety === 'כן'
+    const varietyProducts = products.filter(product => product.participatesInVariety === 'כן');
+    
+    if (varietyProducts.length === 0) {
+      toast({
+        title: "אין מוצרים במגוון",
+        description: "לא נמצאו מוצרים שמשתתפים במגוון",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+    
+    // בחירת מוצר רנדומלי
+    const randomIndex = Math.floor(Math.random() * varietyProducts.length);
+    const randomProduct = varietyProducts[randomIndex];
+    
+    // הצגת הודעה על המוצר שנבחר
+    toast({
+      title: "מוצר רנדומלי נבחר",
+      description: randomProduct.productName,
+      status: "success",
+      duration: 3000,
+      isClosable: true,
+    });
+    
+    // בחירת המוצר - העתקת הלוגיקה מ-handleSuggestionClick
+    setSearchInputValue(randomProduct.productName);
+    setSearchQuery('');
+    
+    // Show loading state immediately when product is selected
+    setFiltering(true);
+    setShowFiltering(true);
+    filteringStartRef.current = Date.now();
+    
+    setSelectedProduct(randomProduct);
+
+    // Set all filter values to the selected product's values (like in search)
+    setFilters(prev => ({
+      ...prev,
+      brand: randomProduct.brand ? [randomProduct.brand] : [],
+      animalType: randomProduct.animalType ? [randomProduct.animalType] : [],
+      lifeStage: randomProduct.lifeStage ? [randomProduct.lifeStage] : [],
+      internalCategory: randomProduct.internalCategory ? [randomProduct.internalCategory] : [],
+      mainIngredient: randomProduct.mainIngredient ? [randomProduct.mainIngredient] : [],
+      medicalIssue: randomProduct.medicalIssue ? [randomProduct.medicalIssue] : [],
+      qualityLevel: randomProduct.qualityLevel ? [randomProduct.qualityLevel] : [],
+      supplierName: randomProduct.supplierName ? [randomProduct.supplierName] : [],
+    }));
+
+    // Set price and weight range to product's value and value+range
+    if (typeof randomProduct.salePrice === 'number') {
+      let minPrice, maxPrice;
+      // New tiered pricing logic based on product price
+      if (randomProduct.salePrice < 25) {
+        // < 25₪: ±1.5₪ range
+        minPrice = Math.max(0, randomProduct.salePrice - 1.5);
+        maxPrice = randomProduct.salePrice + 1.5;
+      } else if (randomProduct.salePrice < 100) {
+        // 25–99₪: 5₪ פחות, 10₪ יותר
+        minPrice = Math.max(0, randomProduct.salePrice - 5);
+        maxPrice = randomProduct.salePrice + 10;
+      } else {
+        // 100₪ and above: 10₪ פחות, 30₪ יותר
+        minPrice = Math.max(0, randomProduct.salePrice - 10);
+        maxPrice = randomProduct.salePrice + 30;
+      }
+      setPriceRange([minPrice, maxPrice]);
+    }
+
+    // Set weight range
+    if (typeof randomProduct.weight === 'number') {
+      let minWeight, maxWeight;
+      if (randomProduct.weightUnit === 'גרם') {
+        const grams = randomProduct.weight;
+        
+        if (grams <= 99) {
+          minWeight = Math.max(0, grams - 10);
+          maxWeight = grams + 10;
+        } else if (grams <= 499) {
+          minWeight = Math.max(0, grams - 50);
+          maxWeight = grams + 50;
+        } else if (grams <= 999) {
+          minWeight = Math.max(0, grams - 100);
+          maxWeight = grams + 100;
+        } else {
+          minWeight = Math.max(0, grams - 200);
+          maxWeight = grams + 200;
+        }
+        
+        setWeightRange([minWeight, maxWeight]);
+        setWeightUnit('גרם');
+      } else if (randomProduct.weightUnit === 'מ"ל' || randomProduct.weightUnit === 'ml') {
+        const ml = randomProduct.weight;
+        if (ml <= 99) {
+          minWeight = Math.max(0, ml - 10);
+          maxWeight = ml + 10;
+        } else if (ml <= 499) {
+          minWeight = Math.max(0, ml - 50);
+          maxWeight = ml + 50;
+        } else if (ml <= 999) {
+          minWeight = Math.max(0, ml - 100);
+          maxWeight = ml + 100;
+        } else {
+          minWeight = Math.max(0, ml - 200);
+          maxWeight = ml + 200;
+        }
+        setWeightRange([minWeight, maxWeight]);
+        setWeightUnit('מ"ל');
+      } else if (randomProduct.weightUnit === 'מ"ג' || randomProduct.weightUnit === 'mg') {
+        const mg = randomProduct.weight;
+        if (mg <= 999) {
+          minWeight = Math.max(0, mg - 50);
+          maxWeight = mg + 50;
+        } else if (mg <= 4999) {
+          minWeight = Math.max(0, mg - 200);
+          maxWeight = mg + 200;
+        } else {
+          minWeight = Math.max(0, mg - 500);
+          maxWeight = mg + 500;
+        }
+        setWeightRange([minWeight, maxWeight]);
+        setWeightUnit('מ"ג');
+      } else {
+        // For kg and other units
+        const kg = randomProduct.weight;
+        if (kg <= 0.5) {
+          minWeight = Math.max(0, kg - 0.1);
+          maxWeight = kg + 0.1;
+        } else if (kg <= 2) {
+          minWeight = Math.max(0, kg - 0.3);
+          maxWeight = kg + 0.3;
+        } else {
+          minWeight = Math.max(0, kg - 0.5);
+          maxWeight = kg + 0.5;
+        }
+        setWeightRange([minWeight, maxWeight]);
+        setWeightUnit('ק"ג');
+      }
+    }
+
+    // Set active filters - only price, weight, internalCategory, animalType, and varietyOnly
+    setActiveFilters({
+      price: true,
+      weight: true,
+      internalCategory: !!randomProduct.internalCategory,
+      animalType: !!randomProduct.animalType,
+      // Keep other filters inactive
+      brand: false,
+      lifeStage: false,
+      mainIngredient: false,
+      medicalIssue: false,
+      qualityLevel: false,
+      supplierName: false
+    });
+  }, [products, toast]);
 
   // Keyboard shortcut handler
   useEffect(() => {
@@ -1461,17 +1748,23 @@ function App() {
           }
         });
       }
+      
+      // Random product shortcut (Ctrl+Shift+R)
+      if (event.ctrlKey && event.shiftKey && event.key === 'R') {
+        event.preventDefault();
+        handleRandomProduct();
+      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [handleRandomProduct]);
 
   // Load data using Web Worker for better performance
   useEffect(() => {
     console.log('🚀 useEffect loadData triggered');
     loadOrBuildIndex();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadOrBuildIndex = async () => {
       try {
@@ -1622,12 +1915,29 @@ function App() {
               throw new Error(`HTTP error! status: ${response.status}`);
             }
             
-            // Use the worker to decompress the file but skip index building
-            worker.postMessage({ 
-              type: 'loadData', 
-              skipIndexRebuild: true,
-              useCachedIndex: true 
-            });
+            // Decompress the data directly in the main thread
+            const arrayBuffer = await response.arrayBuffer();
+            if (typeof pako !== 'undefined') {
+              const decompressed = pako.inflate(arrayBuffer, { to: 'string' });
+              const jsonData = JSON.parse(decompressed);
+              
+              // Transform the products data
+              const allProducts = transformProducts(jsonData);
+              setProducts(allProducts);
+              setError(null);
+              
+              // Use the existing cached index
+              console.log('✅ Using existing cached index, no need to rebuild');
+              
+              // Filter options will be automatically calculated by useMemo when products are set
+              setPriceRange(getRangeValues(allProducts, 'salePrice'));
+              setWeightRange(getRangeValues(allProducts, 'weight'));
+              
+              setLoading(false);
+              worker.terminate();
+            } else {
+              throw new Error('pako library not available for decompression');
+            }
             
           } catch (error) {
             console.error('❌ Failed to load products directly:', error);
@@ -2777,36 +3087,44 @@ function App() {
       <Box as="header" bg="white" boxShadow="sm" borderBottom="1px solid" borderColor="gray.200">
         <Container maxW="7xl" px={4} py={3}>
           <Flex align="center" justify="space-between">
-                                      <Flex direction="column" align="flex-start" gap={0}>
-              <Flex align="flex-end" gap={1} cursor="pointer" onClick={() => window.location.reload()} _hover={{ opacity: 0.8 }}>
-                <Text fontSize="4xl" alignSelf="flex-end" transform="translateY(8px)">🐕</Text>
-                <Flex align="flex-end" gap={2}>
-                  <Heading 
-                    as="h1" 
-                    size="2xl" 
-                    bgGradient="linear(to-b,rgb(203, 219, 159),rgb(164, 179, 132))"
-                    bgClip="text"
-                    fontWeight="900" 
-                  >
-                    אניפט
-                  </Heading>
-                  <Badge 
-                    colorScheme="orange" 
-                    variant="solid" 
-                    fontSize="xs" 
-                    px={2} 
-                    py={1} 
-                    borderRadius="full"
-                    transform="translateY(-8px)"
-                    fontWeight="bold"
-                  >
-                    בטא
-                  </Badge>
+            <Flex direction="column" align="flex-start" gap={0}>
+              <Flex align="center" gap={3} cursor="pointer" onClick={() => window.location.reload()} _hover={{ opacity: 0.8 }}>
+                <Image 
+                  src="/icon-96.png" 
+                  alt="אניפט לוגו" 
+                  width="80px" 
+                  height="80px" 
+                  objectFit="contain"
+                />
+                <Flex direction="column" align="center" gap={1} transform="translateY(-7px)">
+                  <Flex align="flex-end" gap={2}>
+                    <Heading 
+                      as="h1" 
+                      size="2xl" 
+                      bgGradient="linear(to-b,rgb(203, 219, 159),rgb(164, 179, 132))"
+                      bgClip="text"
+                      fontWeight="900" 
+                    >
+                      אניפט
+                    </Heading>
+                    <Badge 
+                      colorScheme="orange" 
+                      variant="solid" 
+                      fontSize="xs" 
+                      px={2} 
+                      py={1} 
+                      borderRadius="full"
+                      transform="translateY(-8px)"
+                      fontWeight="bold"
+                    >
+                      בטא
+                    </Badge>
+                  </Flex>
+                  <Text fontSize="28.5px" fontWeight="600" color="#14662C" lineHeight="0.8">
+                    חיפוש תחליפים
+                  </Text>
                 </Flex>
               </Flex>
-              <Text fontSize="28.5px" fontWeight="600" color="#14662C" lineHeight="0.8">
-                חיפוש תחליפים
-              </Text>
             </Flex>
             <Flex align="center" spacing={4}>
               {selectedProduct ? (
@@ -2968,6 +3286,23 @@ function App() {
                       🔍
                     </Button>
                   </Tooltip>
+                  <Tooltip label="בחר מוצר רנדומלי במגוון (Ctrl+Shift+R)" placement="top">
+                    <Button
+                      onClick={handleRandomProduct}
+                      size="sm"
+                      variant="ghost"
+                      color="purple.600"
+                      _hover={{ color: 'purple.800' }}
+                      onKeyDown={(e) => {
+                        if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+                          e.preventDefault();
+                          e.target.click();
+                        }
+                      }}
+                    >
+                      🎲
+                    </Button>
+                  </Tooltip>
                 </Flex>
               </Flex>
 
@@ -2992,7 +3327,7 @@ function App() {
                 <AccordionFilter
                   label="מחיר"
                   icon={DollarSign}
-                  value={priceRange[0] !== priceRange[1] ? [`₪${priceRange[0]} - ₪${priceRange[1]}`] : []}
+                  value={priceRange[0] !== priceRange[1] ? [`₪${Number(priceRange[0]).toFixed(1)} - ₪${Number(priceRange[1]).toFixed(1)}`] : []}
                   options={[]}
                   onChange={() => {}}
                   enabled={activeFilters.price}
@@ -3290,40 +3625,47 @@ function App() {
                                 </Select>
                               </Flex>
                               
-                              {/* View Mode Toggle */}
-                              <Flex align="center" gap={1}>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  color={viewMode === 'grid' ? 'brand.600' : 'gray.500'}
-                                  bg={viewMode === 'grid' ? 'brand.50' : 'transparent'}
-                                  onClick={() => setViewMode('grid')}
-                                  _hover={{ bg: viewMode === 'grid' ? 'brand.100' : 'gray.100' }}
-                                  px={2.5}
-                                  py={1.5}
-                                  minW="auto"
-                                  h="auto"
-                                  border="1px solid"
-                                  borderColor="gray.200"
-                                >
-                                  <LayoutGrid size={17} />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  color={viewMode === 'list' ? 'brand.600' : 'gray.500'}
-                                  bg={viewMode === 'list' ? 'brand.50' : 'transparent'}
-                                  onClick={() => setViewMode('list')}
-                                  _hover={{ bg: viewMode === 'list' ? 'brand.100' : 'gray.100' }}
-                                  px={2.5}
-                                  py={1.5}
-                                  minW="auto"
-                                  h="auto"
-                                  border="1px solid"
-                                  borderColor="gray.200"
-                                >
-                                  <StretchHorizontal size={17} />
-                                </Button>
+                                                              {/* View Mode Toggle */}
+                              <Flex align="center" gap={1} direction="column">
+                                <Flex align="center" gap={1}>
+                                  <Tooltip label="תצוגת רשת" placement="top" maxW="100px" offset={[0, 8]}>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      color={viewMode === 'grid' ? 'brand.600' : 'gray.500'}
+                                      bg={viewMode === 'grid' ? 'brand.50' : 'transparent'}
+                                      onClick={() => handleViewModeToggle('grid')}
+                                      _hover={{ bg: viewMode === 'grid' ? 'brand.100' : 'gray.100' }}
+                                      px={2.5}
+                                      py={1.5}
+                                      minW="auto"
+                                      h="auto"
+                                      border="1px solid"
+                                      borderColor="gray.200"
+                                    >
+                                      <LayoutGrid size={17} />
+                                    </Button>
+                                  </Tooltip>
+                                  <Tooltip label="תצוגת רשימה" placement="top" maxW="100px" offset={[0, 8]}>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      color={viewMode === 'list' ? 'brand.600' : 'gray.500'}
+                                      bg={viewMode === 'list' ? 'brand.50' : 'transparent'}
+                                      onClick={() => handleViewModeToggle('list')}
+                                      _hover={{ bg: viewMode === 'list' ? 'brand.100' : 'gray.100' }}
+                                      px={2.5}
+                                      py={1.5}
+                                      minW="auto"
+                                      h="auto"
+                                      border="1px solid"
+                                      borderColor="gray.200"
+                                    >
+                                      <StretchHorizontal size={17} />
+                                    </Button>
+                                  </Tooltip>
+                                </Flex>
+
                               </Flex>
                             </Flex>
                             {/* כאן לא יוצג SimilarityBreakdownBar */}
