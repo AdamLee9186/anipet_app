@@ -1,0 +1,49 @@
+
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+    <meta charset="UTF-8">
+    <title>דוגמה לטעינת JSON דחוס</title>
+    <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/brotli-dec-wasm@1.3.2/brotli_dec_wasm.js"></script>
+</head>
+<body>
+    <h1>דוגמה לטעינת JSON דחוס</h1>
+    <button onclick="loadGzipped()">טען JSON דחוס (Gzip)</button>
+    <button onclick="loadBrotli()">טען JSON דחוס (Brotli)</button>
+    <button onclick="loadMinified()">טען JSON מזערי</button>
+    
+    <div id="results"></div>
+    
+    <script type="module">
+        import { loadCompressedJson } from './json-decompressor.js';
+        
+        window.loadGzipped = async () => {
+            try {
+                const data = await loadCompressedJson('./anipet_products_optimized.json.gz', 'gzip');
+                document.getElementById('results').innerHTML = `<p>✅ טען בהצלחה ${data.length} מוצרים (Gzip)</p>`;
+            } catch (error) {
+                document.getElementById('results').innerHTML = `<p>❌ שגיאה: ${error.message}</p>`;
+            }
+        };
+        
+        window.loadBrotli = async () => {
+            try {
+                const data = await loadCompressedJson('./anipet_products_optimized.json.br', 'brotli');
+                document.getElementById('results').innerHTML = `<p>✅ טען בהצלחה ${data.length} מוצרים (Brotli)</p>`;
+            } catch (error) {
+                document.getElementById('results').innerHTML = `<p>❌ שגיאה: ${error.message}</p>`;
+            }
+        };
+        
+        window.loadMinified = async () => {
+            try {
+                const data = await loadCompressedJson('./anipet_products_optimized.min.json');
+                document.getElementById('results').innerHTML = `<p>✅ טען בהצלחה ${data.length} מוצרים (מזערי)</p>`;
+            } catch (error) {
+                document.getElementById('results').innerHTML = `<p>❌ שגיאה: ${error.message}</p>`;
+            }
+        };
+    </script>
+</body>
+</html>

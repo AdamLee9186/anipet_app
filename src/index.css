@@ -1,0 +1,507 @@
+/* Add Rubik font */
+@import url('https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap');
+
+/* RTL Support */
+html {
+  direction: rtl;
+  font-family: "Rubik", sans-serif;
+}
+
+body {
+  direction: rtl;
+  font-family: "Rubik", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Apply Rubik to all elements */
+* {
+  font-family: "Rubik", sans-serif;
+}
+
+/* RTL specific adjustments */
+.rtl-space-x-reverse > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 1;
+}
+
+/* Dropdown positioning for RTL */
+.dropdown-rtl {
+  right: 0;
+  left: auto;
+}
+
+/* Compact styling */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Custom slider styles */
+.rc-slider {
+  direction: ltr;
+}
+
+.rc-slider-rail {
+  background-color: #e5e7eb !important;
+  height: 6px !important;
+}
+
+.rc-slider-track {
+  background-color: #3b82f6 !important;
+  height: 6px !important;
+}
+
+.rc-slider-handle {
+  background-color: #3b82f6 !important;
+  border: 2px solid #3b82f6 !important;
+  height: 20px !important;
+  width: 20px !important;
+  margin-top: -7px !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.rc-slider-handle:hover {
+  background-color: #2563eb !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+.rc-slider-handle:active {
+  background-color: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Compact card styles */
+.product-card {
+  transition: all 0.2s ease-in-out;
+}
+
+.product-card:hover {
+  transform: translateY(-2px);
+}
+
+/* Compact spacing */
+.compact-p {
+  padding: 0.5rem;
+}
+
+.compact-m {
+  margin: 0.5rem;
+}
+
+/* Custom scrollbar for dropdowns */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+/* Spinner animation for loading states */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Performance optimizations */
+* {
+  box-sizing: border-box;
+}
+
+/* Optimize animations */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Optimize Lottie animations for better performance */
+.lottie-container {
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Modal fixes to prevent duplicate modals */
+.chakra-modal__overlay {
+  z-index: 1400 !important;
+}
+
+.chakra-modal__content {
+  z-index: 1401 !important;
+}
+
+/* Hide any modal content that's not the last one */
+.chakra-modal__content:not(:last-child) {
+  display: none !important;
+}
+
+/* Ensure only one modal is visible at a time */
+.chakra-modal__overlay:not(:last-child) {
+  display: none !important;
+}
+
+/* Ensure modal overlay is properly positioned */
+.chakra-modal__overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+}
+
+/* Force single modal display */
+.chakra-modal__overlay {
+  pointer-events: auto !important;
+}
+
+.chakra-modal__overlay + .chakra-modal__overlay {
+  display: none !important;
+}
+
+/* Additional modal cleanup */
+.chakra-modal__overlay {
+  isolation: isolate !important;
+}
+
+/* Ensure modal content is unique */
+.chakra-modal__content {
+  isolation: isolate !important;
+}
+
+/* Remove any duplicate modal elements */
+.chakra-modal__overlay:nth-child(n+2) {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* Force single modal instance */
+.chakra-modal__overlay {
+  position: fixed !important;
+  z-index: 1400 !important;
+}
+
+/* Ensure only one modal content is visible */
+.chakra-modal__content {
+  position: relative !important;
+  z-index: 1401 !important;
+}
+
+/* Hide all but the last modal */
+.chakra-modal__overlay:not(:last-of-type) {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Completely disable Chakra modals to prevent conflicts */
+.chakra-modal__overlay,
+.chakra-modal__content {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Ensure single image display in preview modal */
+.chakra-box img {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+  display: block !important;
+}
+
+/* Hide duplicate images */
+.chakra-box img + img {
+  display: none !important;
+}
+
+/* Force single image in preview modal */
+.chakra-box[style*="display: flex"] img {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  width: auto !important;
+  height: auto !important;
+  object-fit: contain !important;
+  display: block !important;
+}
+
+/* Prevent image overflow */
+.chakra-box[style*="overflow: hidden"] {
+  overflow: hidden !important;
+}
+
+/* Custom modal container styles for image preview */
+.custom-modal-container {
+  max-width: 90vw !important;
+  max-height: 90vh !important;
+  overflow: hidden !important;
+}
+
+/* Ensure Chakra Image component works properly in modal */
+.chakra-image {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  border-radius: 8px !important;
+}
+
+
+
+
+
+/* Smooth transitions for filtering states */
+.filtering-transition {
+  transition: opacity 0.2s ease-in-out;
+}
+
+/* RTL text alignment */
+.rtl-text {
+  text-align: right !important;
+  direction: rtl !important;
+}
+
+/* More specific RTL text alignment for tooltips */
+.chakra-tooltip .rtl-text {
+  text-align: right !important;
+  direction: rtl !important;
+}
+
+.chakra-tooltip .rtl-text,
+.chakra-tooltip__content .rtl-text,
+[data-popper-placement] .rtl-text {
+  text-align: right !important;
+  direction: rtl !important;
+  unicode-bidi: bidi-override !important;
+}
+
+/* Force text alignment to right side of tooltip container */
+.chakra-tooltip,
+.chakra-tooltip__popper,
+.chakra-tooltip__content,
+[data-popper-placement] {
+  text-align: right !important;
+  direction: rtl !important;
+  unicode-bidi: plaintext !important;
+  min-width: 300px !important;
+  max-width: 400px !important;
+}
+
+/* Force alignment on Chakra Box components inside tooltips */
+.chakra-tooltip .chakra-box,
+.chakra-tooltip__content .chakra-box,
+[data-popper-placement] .chakra-box {
+  text-align: right !important;
+  direction: rtl !important;
+  unicode-bidi: plaintext !important;
+}
+
+/* Ensure all text elements are right-aligned in tooltips */
+.chakra-tooltip p,
+.chakra-tooltip div,
+.chakra-tooltip span,
+.chakra-tooltip__content p,
+.chakra-tooltip__content div,
+.chakra-tooltip__content span,
+[data-popper-placement] p,
+[data-popper-placement] div,
+[data-popper-placement] span {
+  text-align: right !important;
+  direction: rtl !important;
+}
+
+/* Remove the arrow/triangle from tooltips */
+.chakra-tooltip__arrow,
+.chakra-tooltip [data-popper-arrow],
+.chakra-tooltip__popper [data-popper-arrow],
+.chakra-tooltip__content [data-popper-arrow],
+[data-popper-placement] [data-popper-arrow],
+.chakra-tooltip svg,
+.chakra-tooltip__popper svg,
+.chakra-tooltip__content svg,
+[data-popper-placement] svg {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Force RTL on all text inside tooltips */
+.chakra-tooltip *,
+.chakra-tooltip__content *,
+[data-popper-placement] * {
+  text-align: right !important;
+  direction: rtl !important;
+  unicode-bidi: plaintext !important;
+}
+
+/* Override any inline styles that might be set */
+.chakra-tooltip [style*="text-align"],
+.chakra-tooltip__content [style*="text-align"],
+[data-popper-placement] [style*="text-align"],
+.chakra-tooltip [style*="direction"],
+.chakra-tooltip__content [style*="direction"],
+[data-popper-placement] [style*="direction"] {
+  text-align: right !important;
+  direction: rtl !important;
+  unicode-bidi: plaintext !important;
+}
+
+/* RTL flex direction */
+.rtl-flex {
+  flex-direction: row-reverse;
+}
+
+/* Optimize images */
+img {
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+/* Product card image styling - ensure images are contained without cropping */
+.product-card img,
+.chakra-box img,
+.chakra-image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain !important;
+  object-position: center;
+  display: block;
+}
+
+/* Ensure product card image containers maintain aspect ratio */
+.product-card .chakra-image,
+.product-card .chakra-box,
+.chakra-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Specific styling for OptimizedImage component */
+.product-card .chakra-image img {
+  object-fit: contain !important;
+  object-position: center;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+}
+
+/* Override any Chakra UI default image styles */
+.chakra-image,
+.chakra-image img {
+  object-fit: contain !important;
+  object-position: center !important;
+}
+
+/* Ensure all images in product cards are contained */
+.product-card img,
+.product-card .chakra-image,
+.product-card .chakra-image img {
+  object-fit: contain !important;
+  object-position: center !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+/* Specific fix for OptimizedImage component */
+.product-card .chakra-box {
+  overflow: visible !important;
+}
+
+.product-card .chakra-box img {
+  object-fit: contain !important;
+  object-position: center !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  width: auto !important;
+  height: auto !important;
+  display: block !important;
+}
+
+/* Reduce layout shifts */
+.chakra-slider {
+  contain: layout;
+}
+
+/* Optimize tooltips */
+.chakra-tooltip {
+  contain: layout style paint;
+}
+
+/* Optimize tooltips */
+.chakra-tooltip {
+  contain: layout style paint;
+}
+
+.chakra-numberinput__stepper {
+  display: flex !important;
+  opacity: 1 !important;
+  position: static !important;
+  z-index: 1;
+}
+
+/* Masonry grid styles - RTL optimized */
+.my-masonry-grid {
+  display: flex;
+  margin-right: -16px; /* רווח בין עמודות - RTL */
+  width: auto;
+  direction: rtl;
+}
+
+.my-masonry-grid_column {
+  padding-right: 16px; /* רווח בין עמודות - RTL */
+  background-clip: padding-box;
+  direction: rtl;
+}
+
+.my-masonry-grid_column > div {
+  margin-bottom: 16px; /* רווח בין כרטיסיות */
+  direction: rtl;
+}
+
+/* React Window Grid spacing */
+.react-window-grid-cell {
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+/* CSS Grid with RTL ordering */
+.my-dense-grid {
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+.my-dense-grid > * {
+  direction: rtl !important;
+  text-align: right !important;
+}

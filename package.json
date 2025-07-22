@@ -1,0 +1,86 @@
+{
+  "name": "pet-store-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pet store app with search index caching for improved performance",
+  "dependencies": {
+    "@chakra-ui/hooks": "^2.2.1",
+    "@chakra-ui/react": "^2.8.2",
+    "@chakra-ui/styled-system": "^2.12.0",
+    "@chakra-ui/theme": "^2.2.5",
+    "@chakra-ui/utils": "^2.2.2",
+    "@craco/craco": "^7.1.0",
+    "@emotion/cache": "^11.11.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@testing-library/jest-dom": "^5.16.4",
+    "@testing-library/react": "^13.3.0",
+    "@testing-library/user-event": "^13.5.0",
+    "ajv-keywords": "^5.1.0",
+    "buffer": "^6.0.3",
+    "cors": "^2.8.5",
+    "csv-parser": "^3.2.0",
+    "es-abstract": "^1.24.0",
+    "express": "^5.1.0",
+    "framer-motion": "^10.16.4",
+    "fuse.js": "^7.1.0",
+    "idb": "^8.0.3",
+    "lodash.debounce": "^4.0.8",
+    "lucide-react": "^0.525.0",
+    "papaparse": "^5.5.3",
+    "process": "^0.11.10",
+    "react": "^19.1.0",
+    "react-dev-utils": "^12.0.1",
+    "react-dom": "^19.1.0",
+    "react-icons": "^5.5.0",
+    "react-masonry-css": "^1.0.16",
+    "react-refresh": "^0.17.0",
+    "react-scripts": "^5.0.1",
+    "react-virtualized-auto-sizer": "^1.0.26",
+    "react-window": "^1.8.11",
+    "resize-observer-polyfill": "^1.5.1",
+    "shebang-command": "^2.0.0",
+    "stylis-plugin-rtl": "^2.1.1",
+    "typesense": "^2.0.3",
+    "web-vitals": "^2.1.4",
+    "xlsx": "^0.18.5"
+  },
+  "scripts": {
+    "start": "set NODE_OPTIONS=--openssl-legacy-provider && craco start",
+    "build": "set NODE_OPTIONS=--openssl-legacy-provider && set DISABLE_ESLINT_PLUGIN=true && craco build",
+    "build:prod": "set NODE_OPTIONS=--openssl-legacy-provider && set DISABLE_ESLINT_PLUGIN=true && craco build && node scripts/build-production.js",
+    "test": "craco test",
+    "eject": "react-scripts eject",
+    "dev": "set NODE_OPTIONS=--openssl-legacy-provider && MIGHTYMELD_API_KEY=YOUR_API_KEY_HERE craco start",
+    "mightymeld": "set NODE_OPTIONS=--openssl-legacy-provider && MIGHTYMELD_API_KEY=YOUR_API_KEY_HERE craco start",
+    "clean": "node scripts/build-production.js"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@babel/plugin-transform-class-properties": "^7.27.1",
+    "@babel/plugin-transform-nullish-coalescing-operator": "^7.27.1",
+    "@babel/plugin-transform-numeric-separator": "^7.27.1",
+    "@babel/plugin-transform-optional-chaining": "^7.27.1",
+    "@babel/plugin-transform-private-methods": "^7.27.1",
+    "@babel/plugin-transform-private-property-in-object": "^7.27.1",
+    "@mightymeld/runtime": "^0.1.51",
+    "ajv": "^8.17.1"
+  }
+}
