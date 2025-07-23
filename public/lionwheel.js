@@ -18,8 +18,8 @@
     function createAlternativesButton(productName, barcode) {
         const button = document.createElement('button');
         button.innerHTML = `
-            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTggMTZDNi42MTQyNSAxNiA1LjI2MDgzIDE1LjY4NzUgNC4wMDAwMyAxNS4wNzVMMi4yMjUgMTYuODVMMCAxNC42MjVMMS43NzUgMTIuODVDMS4yNjI1IDExLjYxOTIgMSAxMC4zMjUgMSA5QzEgNC4wMzUgNC4wMzUgMSA5IDFDMTMuOTY1IDEgMTcgNC4wMzUgMTcgOUMxNyAxMy45NjUgMTMuOTY1IDE3IDkgMTdaTTkgMkM0LjU4IDIgMSA1LjU4IDEgMTBDMSAxNC40MiA0LjU4IDE4IDkgMThDMTMuNDIgMTggMTcgMTQuNDIgMTcgMTBDMTcgNS41OCAxMy40MiAyIDkgMloiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik05IDExQzEwLjEwNDYgMTEgMTEgMTAuMTA0NiAxMSA5QzExIDcuODk1NDMgMTAuMTA0NiA3IDkgN0M3Ljg5NTQzIDcgNyA3Ljg5NTQzIDcgOUM3IDEwLjEwNDYgNy44OTU0MyAxMSA5IDExWiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+" 
-                 alt="🔍" 
+            <img src="https://anipetapp.netlify.app/pixel.svg" 
+                 alt="🐕" 
                  style="width: 12px; height: 12px; vertical-align: middle; margin-right: 2px;">
             תחליפים
         `;
@@ -51,9 +51,9 @@
         };
         
         button.onclick = function() {
-            // Prefer product name over barcode for better search results
-            const searchTerm = productName || barcode;
-            const searchUrl = `${ANIPET_APP_URL}?search=${encodeURIComponent(searchTerm)}`;
+            // Use barcode for more accurate search results
+            const searchTerm = barcode || productName;
+            const searchUrl = `${ANIPET_APP_URL}?barcode=${encodeURIComponent(searchTerm)}`;
             
             // Open in new tab
             window.open(searchUrl, '_blank');
