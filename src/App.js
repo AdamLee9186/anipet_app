@@ -2182,6 +2182,9 @@ function App() {
         qualityLevel: [],
         supplierName: []
       });
+      
+      // Disable variety filter to show all results (including non-variety products)
+      setVarietyOnly(false);
     }
   }, [searchQuery, products.length]); // Run when searchQuery or products change
 
