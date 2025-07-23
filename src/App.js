@@ -2149,6 +2149,42 @@ function App() {
     }
   }, []); // Run once on app load
 
+  // Trigger search when searchQuery changes (for LionWheel integration)
+  useEffect(() => {
+    if (searchQuery && searchQuery.length >= 3 && products.length > 0) {
+      console.log('🔍 Auto-triggering search for LionWheel:', searchQuery);
+      
+      // Clear any selected product to show search results
+      setSelectedProduct(null);
+      
+      // Clear any active filters to show all search results
+      setActiveFilters({
+        price: false,
+        brand: false,
+        animalType: false,
+        lifeStage: false,
+        internalCategory: false,
+        mainIngredient: false,
+        medicalIssue: false,
+        qualityLevel: false,
+        supplierName: false,
+        weight: false
+      });
+      
+      // Clear filters to show all results
+      setFilters({
+        brand: [],
+        animalType: [],
+        lifeStage: [],
+        internalCategory: [],
+        mainIngredient: [],
+        medicalIssue: [],
+        qualityLevel: [],
+        supplierName: []
+      });
+    }
+  }, [searchQuery, products.length]); // Run when searchQuery or products change
+
   const loadOrBuildIndex = async () => {
       try {
         setLoading(true);
