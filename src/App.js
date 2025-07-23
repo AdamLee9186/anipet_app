@@ -3,7 +3,11 @@
 // Updated for deployment with fixed data-worker.js
 import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense, lazy } from 'react';
 // import debounce from 'lodash.debounce'; // Removed unused import
-import { Tag, Dog, Baby, Folder, Utensils, HeartCrack, Star, Filter, Package, DollarSign, Scale, X, Check, Link, Search, ArrowDownUp, LayoutGrid, StretchHorizontal, Dices, CircleCheck, Trash } from 'lucide-react';
+import { 
+  Tag, Dog, Baby, Folder, Utensils, HeartCrack, Star, Filter, Package, 
+  DollarSign, Scale, X, Check, Link, Search, ArrowDownUp, LayoutGrid, 
+  StretchHorizontal, Dices, CircleCheck, Trash, Heart, Menu 
+} from 'lucide-react';
 import {
   Box,
   Flex,
@@ -30,6 +34,24 @@ import {
   Spinner,
   Switch,
   useBreakpointValue,
+  // הוספת imports חדשים ל-Responsive Design
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  Drawer,
+  DrawerBody,
+  DrawerHeader,
+  DrawerOverlay,
+  DrawerContent,
+  DrawerCloseButton,
+  SimpleGrid,
+  HStack,
+  Divider,
+  useDisclosure,
 } from '@chakra-ui/react';
 import SimilarityBreakdownBar from './components/SimilarityBreakdownBar';
 import { TAG_META } from './components/SimilarityBreakdownBar';
@@ -51,6 +73,254 @@ const pako = window.pako;
 const Autocomplete = lazy(() => import('./components/Autocomplete'));
 const DropdownRangeSlider = lazy(() => import('./components/DropdownRangeSlider'));
 const OptimizedImage = lazy(() => import('./components/ImageWithPreview'));
+
+// Mobile Navigation Component
+const MobileNavigation = () => {
+  return (
+    <Box
+      display={{ base: "flex", lg: "none" }}
+      position="sticky"
+      top={0}
+      zIndex={1000}
+      bg="white"
+      borderBottom="1px solid"
+      borderColor="gray.200"
+      px={4}
+      py={3}
+      boxShadow="sm"
+    >
+      <Flex align="center" justify="center" w="100%">
+        {/* לוגו/כותרת */}
+        <Heading size="md" color="brand.600" display="flex" alignItems="center">
+          <Image 
+            src="/icon-96.png" 
+            alt="אניפט" 
+            boxSize={6} 
+            mr={2}
+            objectFit="contain"
+          />
+          אניפט - חיפוש תחליפים
+        </Heading>
+      </Flex>
+    </Box>
+  );
+};
+
+
+
+// Touch-Friendly Button Component
+const TouchButton = ({ children, size = "md", ...props }) => (
+  <Button
+    minH={{ base: "44px", md: "40px" }} // מינימום 44px למגע
+    minW={{ base: "44px", md: "40px" }}
+    fontSize={{ base: "16px", md: "14px" }} // מניעת zoom ב-iOS
+    _active={{ transform: "scale(0.95)" }}
+    size={size}
+    {...props}
+  >
+    {children}
+  </Button>
+);
+
+// Responsive Product Grid
+const ResponsiveProductGrid = ({ products, viewMode, selectedProduct, activeFilters, onOpenPreview, onSearchAlternatives }) => {
+  const isMobile = useBreakpointValue({ base: true, md: false });
+  const isTablet = useBreakpointValue({ base: false, md: true, lg: false });
+  
+  const breakpointCols = {
+    default: isMobile ? 1 : isTablet ? 2 : 3,
+    1100: 3,
+    700: 2,
+    500: 1
+  };
+  
+  if (viewMode === 'grid') {
+    return (
+      <Masonry
+        breakpointCols={breakpointCols}
+        className="my-masonry-grid"
+        columnClassName="my-masonry-grid_column"
+        style={{
+          display: 'flex',
+          marginLeft: '-8px',
+          width: 'auto',
+          direction: 'rtl'
+        }}
+      >
+        {products.map((product, index) => (
+          <Box
+            key={`${product.sku || product.barcode || index}-${index}`}
+            style={{
+              paddingLeft: '8px',
+              backgroundClip: 'padding-box',
+              direction: 'rtl'
+            }}
+            mb={3}
+          >
+            <ProductCard
+              product={product}
+              index={index}
+              selectedProduct={selectedProduct}
+              activeFilters={activeFilters}
+              onOpenPreview={onOpenPreview}
+              onSearchAlternatives={onSearchAlternatives}
+              viewMode={viewMode}
+            />
+          </Box>
+        ))}
+      </Masonry>
+    );
+  }
+  
+  return (
+    <VStack spacing={3} align="stretch">
+      {products.map((product, index) => (
+        <ProductCard
+          key={`${product.sku || product.barcode || index}-${index}`}
+          product={product}
+          index={index}
+          selectedProduct={selectedProduct}
+          activeFilters={activeFilters}
+          onOpenPreview={onOpenPreview}
+          onSearchAlternatives={onSearchAlternatives}
+          viewMode={viewMode}
+        />
+      ))}
+    </VStack>
+  );
+};
+
+// Responsive Controls
+const ResponsiveControls = ({ 
+  resultsFilter, 
+  setResultsFilter, 
+  isResultsFiltering, 
+  sortBy, 
+  setSortBy, 
+  viewMode, 
+  handleViewModeToggle 
+}) => {
+  const isMobile = useBreakpointValue({ base: true, md: false });
+  
+  return (
+    <Flex 
+      direction={{ base: 'column', sm: 'row' }} 
+      justify="flex-end" 
+      align={{ base: 'stretch', sm: 'center' }} 
+      gap={{ base: 3, sm: 4 }}
+      mb={4} 
+      px={{ base: 1, sm: 2 }}
+    >
+      {/* Results Filter */}
+      <Flex 
+        align="center" 
+        gap={2}
+        direction={{ base: 'column', sm: 'row' }}
+        w={{ base: '100%', sm: 'auto' }}
+      >
+        <Flex align="center" gap={2} w={{ base: '100%', sm: 'auto' }}>
+          <Icon as={Search} boxSize={4} color="gray.500" />
+          <Text fontSize="sm" color="gray.600" fontWeight="medium">
+            סנן לפי:
+          </Text>
+        </Flex>
+        <Input
+          placeholder={isResultsFiltering ? "מסנן..." : "סנן תוצאות..."}
+          value={resultsFilter}
+          onChange={(e) => setResultsFilter(e.target.value)}
+          size="sm"
+          w={{ base: "100%", sm: "200px" }}
+          bg="white"
+          borderColor={isResultsFiltering ? "brand.400" : "gray.300"}
+          _hover={{ borderColor: isResultsFiltering ? "brand.500" : "gray.400" }}
+          _focus={{ borderColor: 'brand.500', boxShadow: 'outline' }}
+          dir="rtl"
+          style={{ direction: 'rtl', paddingRight: '1em' }}
+          fontSize={{ base: "16px", sm: "14px" }} // מניעת zoom ב-iOS
+        />
+      </Flex>
+      
+      {/* Sort Dropdown */}
+      <Flex 
+        align="center" 
+        gap={2}
+        direction={{ base: 'column', sm: 'row' }}
+        w={{ base: '100%', sm: 'auto' }}
+      >
+        <Flex align="center" gap={2} w={{ base: '100%', sm: 'auto' }}>
+          <Icon as={ArrowDownUp} boxSize={4} color="gray.500" />
+          <Text fontSize="sm" color="gray.600" fontWeight="medium">
+            מיין לפי:
+          </Text>
+        </Flex>
+        <Select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          size="sm"
+          w={{ base: "100%", sm: "200px" }}
+          bg="white"
+          borderColor="gray.300"
+          _hover={{ borderColor: 'gray.400' }}
+          dir="rtl"
+          style={{ direction: 'rtl', paddingRight: '2em' }}
+          fontSize={{ base: "16px", sm: "14px" }} // מניעת zoom ב-iOS
+        >
+          <option value="similarity">התאמה</option>
+          <option value="price-low-high">מחיר נמוך לגבוה</option>
+          <option value="price-high-low">מחיר גבוה לנמוך</option>
+          <option value="name-a-z">שם: א-ת</option>
+          <option value="name-z-a">שם: ת-א</option>
+        </Select>
+      </Flex>
+      
+      {/* View Mode Toggle */}
+      <Flex 
+        align="center" 
+        gap={1} 
+        direction={{ base: 'row', sm: 'column' }}
+        justify={{ base: 'center', sm: 'flex-start' }}
+      >
+        <Text fontSize="xs" color="gray.600" display={{ base: 'none', sm: 'block' }}>
+          תצוגה
+        </Text>
+        <Flex gap={1}>
+          <Tooltip label="תצוגת רשת" placement="top" maxW="100px" offset={[0, 8]}>
+            <TouchButton
+              size="sm"
+              variant="ghost"
+              color={viewMode === 'grid' ? 'brand.600' : 'gray.500'}
+              bg={viewMode === 'grid' ? 'brand.50' : 'transparent'}
+              onClick={() => handleViewModeToggle('grid')}
+              _hover={{ bg: viewMode === 'grid' ? 'brand.100' : 'gray.100' }}
+              px={2.5}
+              py={1.5}
+              minW="auto"
+              minH="auto"
+            >
+              <Icon as={LayoutGrid} boxSize={4} />
+            </TouchButton>
+          </Tooltip>
+          <Tooltip label="תצוגת רשימה" placement="top" maxW="100px" offset={[0, 8]}>
+            <TouchButton
+              size="sm"
+              variant="ghost"
+              color={viewMode === 'list' ? 'brand.600' : 'gray.500'}
+              bg={viewMode === 'list' ? 'brand.50' : 'transparent'}
+              onClick={() => handleViewModeToggle('list')}
+              _hover={{ bg: viewMode === 'list' ? 'brand.100' : 'gray.100' }}
+              px={2.5}
+              py={1.5}
+              minW="auto"
+              minH="auto"
+            >
+              <Icon as={StretchHorizontal} boxSize={4} />
+            </TouchButton>
+          </Tooltip>
+        </Flex>
+      </Flex>
+    </Flex>
+  );
+};
 
 // Helper function to normalize supplier names (trim and remove all spaces)
 const normalizeSupplier = str => (str || '').trim().replace(/\s+/g, '');
@@ -1589,6 +1859,16 @@ function App() {
   const searchInputRef = useRef(null);
   const filteringStartRef = useRef(null);
   const resultsFilterTimeoutRef = useRef(null);
+  
+  // הוספת state למובייל
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isMobileFavoritesOpen, setIsMobileFavoritesOpen] = useState(false);
+  
+  // הוספת breakpoints מותאמים
+  const isMobile = useBreakpointValue({ base: true, md: false });
+  const isTablet = useBreakpointValue({ base: false, md: true, lg: false });
+  const isDesktop = useBreakpointValue({ base: false, lg: true });
 
   // Calculate active similarity fields based on active filters
   const activeSimilarityFields = getActiveSimilarityFields(activeFilters);
@@ -3143,8 +3423,18 @@ function App() {
 
   return (
     <Box minH="100vh" bg="gray.50" dir="rtl">
-      {/* Header */}
-      <Box as="header" bg="white" boxShadow="sm" borderBottom="1px solid" borderColor="gray.200">
+      {/* Mobile Navigation */}
+      <MobileNavigation />
+
+      {/* Desktop Header - מוסתר במובייל */}
+      <Box 
+        display={{ base: "none", lg: "block" }}
+        as="header" 
+        bg="white" 
+        boxShadow="sm" 
+        borderBottom="1px solid" 
+        borderColor="gray.200"
+      >
         <Container maxW="7xl" px={4} py={3}>
           <Flex align="center" justify="space-between">
             <Flex direction="column" align="flex-start" gap={0}>
@@ -3626,185 +3916,26 @@ function App() {
                               })));
                               return null;
                             })()} */}
-                            {/* Sorting Dropdown and Results Filter */}
-                            <Flex 
-                              direction={{ base: 'column', sm: 'row' }} 
-                              justify="flex-end" 
-                              align={{ base: 'stretch', sm: 'center' }} 
-                              gap={4}
-                              mb={4} 
-                              px={2}
-                            >
-                              {/* Results Filter - always show */}
-                              <Flex align="center" gap={2}>
-                                <Icon as={Search} boxSize={4} color="gray.500" />
-                                <Text fontSize="sm" color="gray.600" fontWeight="medium">סנן לפי:</Text>
-                                <Input
-                                  placeholder={isResultsFiltering ? "מסנן..." : "סנן תוצאות..."}
-                                  value={resultsFilter}
-                                  onChange={(e) => {
-                                    // console.log('🔍 [DEBUG] Input onChange triggered:', {
-                                    //   value: e.target.value,
-                                    //   timestamp: Date.now()
-                                    // });
-                                    setResultsFilter(e.target.value);
-                                  }}
-                                  size="sm"
-                                  flex="0 0 auto"
-                                  width={{ base: "100%", sm: "200px" }}
-                                  bg="white"
-                                  borderColor={isResultsFiltering ? "brand.400" : "gray.300"}
-                                  _hover={{ borderColor: isResultsFiltering ? "brand.500" : "gray.400" }}
-                                  _focus={{ borderColor: 'brand.500', boxShadow: 'outline' }}
-                                  dir="rtl"
-                                  style={{ direction: 'rtl', paddingRight: '1em' }}
-                                  key={`results-filter-${sortedProducts.length}`} // Force re-render when product count changes
-                                />
-                              </Flex>
-                              
-                              <Flex align="center" gap={2}>
-                                <Icon as={ArrowDownUp} boxSize={4} color="gray.500" />
-                                <Text fontSize="sm" color="gray.600" fontWeight="medium">מיין לפי:</Text>
-                                <Select
-                                  value={sortBy}
-                                  onChange={(e) => setSortBy(e.target.value)}
-                                  size="sm"
-                                  width={{ base: "100%", sm: "auto" }}
-                                  minWidth={{ base: "100%", sm: "200px" }}
-                                  bg="white"
-                                  borderColor="gray.300"
-                                  _hover={{ borderColor: 'gray.400' }}
-                                  dir="rtl"
-                                  style={{ direction: 'rtl', paddingRight: '2em' }} // Added paddingRight for text indent
-                                >
-                                  <option value="similarity">התאמה</option>
-                                  <option value="price-low-high">מחיר נמוך לגבוה</option>
-                                  <option value="price-high-low">מחיר גבוה לנמוך</option>
-                                  <option value="name-a-z">שם: א-ת</option>
-                                  <option value="name-z-a">שם: ת-א</option>
-                                </Select>
-                              </Flex>
-                              
-                                                              {/* View Mode Toggle */}
-                              <Flex align="center" gap={1} direction="column">
-                                <Flex align="center" gap={1}>
-                                  <Tooltip label="תצוגת רשת" placement="top" maxW="100px" offset={[0, 8]}>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      color={viewMode === 'grid' ? 'brand.600' : 'gray.500'}
-                                      bg={viewMode === 'grid' ? 'brand.50' : 'transparent'}
-                                      onClick={() => handleViewModeToggle('grid')}
-                                      _hover={{ bg: viewMode === 'grid' ? 'brand.100' : 'gray.100' }}
-                                      px={2.5}
-                                      py={1.5}
-                                      minW="auto"
-                                      h="auto"
-                                      border="1px solid"
-                                      borderColor="gray.200"
-                                    >
-                                      <LayoutGrid size={17} />
-                                    </Button>
-                                  </Tooltip>
-                                  <Tooltip label="תצוגת רשימה" placement="top" maxW="100px" offset={[0, 8]}>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      color={viewMode === 'list' ? 'brand.600' : 'gray.500'}
-                                      bg={viewMode === 'list' ? 'brand.50' : 'transparent'}
-                                      onClick={() => handleViewModeToggle('list')}
-                                      _hover={{ bg: viewMode === 'list' ? 'brand.100' : 'gray.100' }}
-                                      px={2.5}
-                                      py={1.5}
-                                      minW="auto"
-                                      h="auto"
-                                      border="1px solid"
-                                      borderColor="gray.200"
-                                    >
-                                      <StretchHorizontal size={17} />
-                                    </Button>
-                                  </Tooltip>
-                                </Flex>
-
-                              </Flex>
-                            </Flex>
+                            {/* Responsive Controls */}
+                            <ResponsiveControls
+                              resultsFilter={resultsFilter}
+                              setResultsFilter={setResultsFilter}
+                              isResultsFiltering={isResultsFiltering}
+                              sortBy={sortBy}
+                              setSortBy={setSortBy}
+                              viewMode={viewMode}
+                              handleViewModeToggle={handleViewModeToggle}
+                            />
                             {/* כאן לא יוצג SimilarityBreakdownBar */}
                             <Suspense fallback={<LoadingFallback message="טוען מוצרים..." size="md" />}>
-                              <Box dir="rtl" style={{ direction: 'rtl' }}>
-                                {(() => {
-                                console.time('products-render');
-                                const productsToRender = sortedProducts.slice(0, displayLimit);
-                                console.log(`Rendering ${productsToRender.length} products`);
-                                
-                                                                                                // Use Masonry with proper RTL layout
-                                console.log(`Using Masonry for ${productsToRender.length} products`);
-                                
-                                const breakpointColumns = {
-                                  default: 3,
-                                  1100: 2,
-                                  700: 1
-                                };
-                                
-                                const result = viewMode === 'grid' ? (
-                                  <Box>
-                                    <Masonry
-                                      breakpointCols={breakpointColumns}
-                                      className="my-masonry-grid"
-                                      columnClassName="my-masonry-grid_column"
-                                      style={{
-                                        direction: 'rtl',
-                                        textAlign: 'right'
-                                      }}
-                                    >
-                                      {productsToRender.map((product, index) => (
-                                        <Box 
-                                          key={`${product.sku || 'no-sku'}-${product.barcode || 'no-barcode'}-${index}`}
-                                          style={{
-                                            direction: 'rtl',
-                                            textAlign: 'right'
-                                          }}
-                                        >
-                                          <ProductCard
-                                            product={product}
-                                            index={index}
-                                            selectedProduct={selectedProduct}
-                                            activeFilters={debouncedFilters.activeFilters}
-                                            onOpenPreview={handleOpenPreview}
-                                            onSearchAlternatives={handleSuggestionClick}
-                                            viewMode={viewMode}
-                                          />
-                                        </Box>
-                                      ))}
-                                    </Masonry>
-                                  </Box>
-                                ) : (
-                                  <VStack spacing={3} align="stretch">
-                                    {productsToRender.map((product, index) => (
-                                      <Box 
-                                        key={`${product.sku || 'no-sku'}-${product.barcode || 'no-barcode'}-${index}`}
-                                        style={{
-                                          direction: 'rtl',
-                                          textAlign: 'right'
-                                        }}
-                                      >
-                                        <ProductCard
-                                          product={product}
-                                          index={index}
-                                          selectedProduct={selectedProduct}
-                                          activeFilters={debouncedFilters.activeFilters}
-                                          onOpenPreview={handleOpenPreview}
-                                          onSearchAlternatives={handleSuggestionClick}
-                                          viewMode={viewMode}
-                                        />
-                                      </Box>
-                                    ))}
-                                  </VStack>
-                                );
-                                  
-                                  console.timeEnd('products-render');
-                                  return result;
-                              })()}
-                            </Box>
+                              <ResponsiveProductGrid
+                                products={sortedProducts.slice(0, displayLimit)}
+                                viewMode={viewMode}
+                                selectedProduct={selectedProduct}
+                                activeFilters={debouncedFilters.activeFilters}
+                                onOpenPreview={handleOpenPreview}
+                                onSearchAlternatives={handleSuggestionClick}
+                              />
                             </Suspense>
                             
                             {/* Load More Button */}
@@ -3981,6 +4112,270 @@ function App() {
           </Box>
         </Box>
       )}
+
+      {/* Mobile Modals */}
+      <Modal
+        isOpen={isMobileFiltersOpen}
+        onClose={() => setIsMobileFiltersOpen(false)}
+        size="full"
+        scrollBehavior="inside"
+        motionPreset="slideInBottom"
+      >
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>
+            <Flex align="center" justify="space-between">
+              <Text fontSize="lg" fontWeight="bold">פילטרים</Text>
+              <IconButton
+                icon={<X />}
+                onClick={() => setIsMobileFiltersOpen(false)}
+                variant="ghost"
+                size="sm"
+                aria-label="סגור"
+              />
+            </Flex>
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <VStack spacing={4} align="stretch">
+              {/* Filters Content */}
+              <Box>
+                <AccordionFilter
+                  label="מחיר"
+                  icon={DollarSign}
+                  value={priceRange}
+                  onChange={(value) => setPriceRange(value)}
+                  enabled={activeFilters.price}
+                  onToggleEnabled={(enabled) => setActiveFilters(prev => ({ ...prev, price: enabled }))}
+                  colorScheme="green"
+                >
+                  <DropdownRangeSlider
+                    min={0}
+                    max={1000}
+                    step={1}
+                    value={priceRange}
+                    onChange={setPriceRange}
+                    formatLabel={(value) => `₪${value}`}
+                    colorScheme="green"
+                  />
+                </AccordionFilter>
+
+                <AccordionFilter
+                  label="משקל"
+                  icon={Scale}
+                  value={weightRange}
+                  onChange={(value) => setWeightRange(value)}
+                  enabled={activeFilters.weight}
+                  onToggleEnabled={(enabled) => setActiveFilters(prev => ({ ...prev, weight: enabled }))}
+                  colorScheme="blue"
+                >
+                  <DropdownRangeSlider
+                    min={0}
+                    max={weightUnit === 'גרם' || weightUnit === 'מ"ל' || weightUnit === 'מ"ג' ? 1000 : weightUnit === 'ליטר' ? 100 : 1}
+                    step={weightUnit === 'גרם' || weightUnit === 'מ"ל' || weightUnit === 'מ"ג' ? 1 : 0.1}
+                    value={weightRange}
+                    onChange={setWeightRange}
+                    formatLabel={(value) => `${value} ${weightUnit}`}
+                    colorScheme="blue"
+                  />
+                </AccordionFilter>
+
+                <AccordionFilter
+                  label="קבוצת על"
+                  icon={Folder}
+                  value={filters.animalType}
+                  options={filterOptions.animalTypes}
+                  onChange={(value) => handleFilterChange('animalType', value)}
+                  multi={true}
+                  enabled={activeFilters.animalType}
+                  onToggleEnabled={(enabled) => setActiveFilters(prev => ({ ...prev, animalType: enabled }))}
+                  colorScheme="purple"
+                />
+
+                <AccordionFilter
+                  label="קטגוריה פנימית"
+                  icon={Package}
+                  value={filters.internalCategory}
+                  options={filterOptions.internalCategories}
+                  onChange={(value) => handleFilterChange('internalCategory', value)}
+                  multi={true}
+                  enabled={activeFilters.internalCategory}
+                  onToggleEnabled={(enabled) => setActiveFilters(prev => ({ ...prev, internalCategory: enabled }))}
+                  colorScheme="orange"
+                />
+
+                <AccordionFilter
+                  label="מותג"
+                  icon={Star}
+                  value={filters.brand}
+                  options={filterOptions.brands}
+                  onChange={(value) => handleFilterChange('brand', value)}
+                  multi={true}
+                  enabled={activeFilters.brand}
+                  onToggleEnabled={(enabled) => setActiveFilters(prev => ({ ...prev, brand: enabled }))}
+                  colorScheme="teal"
+                />
+
+                <AccordionFilter
+                  label="שלב חיים"
+                  icon={Baby}
+                  value={filters.lifeStage}
+                  options={filterOptions.lifeStages}
+                  onChange={(value) => handleFilterChange('lifeStage', value)}
+                  multi={true}
+                  enabled={activeFilters.lifeStage}
+                  onToggleEnabled={(enabled) => setActiveFilters(prev => ({ ...prev, lifeStage: enabled }))}
+                  colorScheme="pink"
+                />
+
+                <AccordionFilter
+                  label="רכיב עיקרי"
+                  icon={Utensils}
+                  value={filters.mainIngredient}
+                  options={filterOptions.mainIngredients}
+                  onChange={(value) => handleFilterChange('mainIngredient', value)}
+                  multi={true}
+                  enabled={activeFilters.mainIngredient}
+                  onToggleEnabled={(enabled) => setActiveFilters(prev => ({ ...prev, mainIngredient: enabled }))}
+                  colorScheme="cyan"
+                />
+
+                <AccordionFilter
+                  label="בעיה רפואית"
+                  icon={HeartCrack}
+                  value={filters.medicalIssue}
+                  options={filterOptions.medicalIssues}
+                  onChange={(value) => handleFilterChange('medicalIssue', value)}
+                  multi={true}
+                  enabled={activeFilters.medicalIssue}
+                  onToggleEnabled={(enabled) => setActiveFilters(prev => ({ ...prev, medicalIssue: enabled }))}
+                  colorScheme="red"
+                />
+
+                <AccordionFilter
+                  label="רמת איכות"
+                  icon={Star}
+                  value={filters.qualityLevel}
+                  options={filterOptions.qualityLevels}
+                  onChange={(value) => handleFilterChange('qualityLevel', value)}
+                  multi={true}
+                  enabled={activeFilters.qualityLevel}
+                  onToggleEnabled={(enabled) => setActiveFilters(prev => ({ ...prev, qualityLevel: enabled }))}
+                  colorScheme="yellow"
+                />
+
+                <AccordionFilter
+                  label="ספק"
+                  icon={Tag}
+                  value={filters.supplierName}
+                  options={filterOptions.supplierNames}
+                  onChange={(value) => handleFilterChange('supplierName', value)}
+                  multi={true}
+                  enabled={activeFilters.supplierName}
+                  onToggleEnabled={(enabled) => setActiveFilters(prev => ({ ...prev, supplierName: enabled }))}
+                  colorScheme="gray"
+                />
+              </Box>
+
+              {/* Clear All Filters Button */}
+              <TouchButton
+                onClick={clearAllFilters}
+                colorScheme="gray"
+                variant="outline"
+                size="lg"
+                w="100%"
+                leftIcon={<Trash />}
+              >
+                נקה כל הפילטרים
+              </TouchButton>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <TouchButton onClick={() => setIsMobileFiltersOpen(false)} colorScheme="brand" w="100%" size="lg">
+              סגור
+            </TouchButton>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      <Modal
+        isOpen={isMobileSearchOpen}
+        onClose={() => setIsMobileSearchOpen(false)}
+        size="full"
+        scrollBehavior="inside"
+        motionPreset="slideInBottom"
+      >
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>
+            <Flex align="center" justify="space-between">
+              <Text fontSize="lg" fontWeight="bold">חיפוש מוצרים</Text>
+              <IconButton
+                icon={<X />}
+                onClick={() => setIsMobileSearchOpen(false)}
+                variant="ghost"
+                size="sm"
+                aria-label="סגור"
+              />
+            </Flex>
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <VStack spacing={4} align="stretch">
+              <Text fontSize="lg" fontWeight="bold" mb={2}>
+                חיפוש מוצרים
+              </Text>
+              
+              {/* Search Input */}
+              <Box>
+                <Text fontSize="sm" color="gray.600" mb={2}>
+                  חפש מוצר ספציפי:
+                </Text>
+                <Suspense fallback={<Spinner size="sm" />}>
+                  <Autocomplete
+                    ref={searchInputRef}
+                    products={products}
+                    onProductSelect={handleSuggestionClick}
+                    placeholder="הקלד שם מוצר או ברקוד..."
+                    disabled={loading}
+                  />
+                </Suspense>
+              </Box>
+
+              {/* Quick Search Buttons */}
+              <Box>
+                <Text fontSize="sm" color="gray.600" mb={2}>
+                  חיפושים מהירים:
+                </Text>
+                <SimpleGrid columns={{ base: 2, sm: 3 }} spacing={2}>
+                  {[
+                    { type: 'animalType', value: 'כלב', label: 'כלב', colorScheme: 'purple' },
+                    { type: 'animalType', value: 'חתול', label: 'חתול', colorScheme: 'purple' },
+                    { type: 'internalCategory', value: 'מזון יבש', label: 'מזון יבש', colorScheme: 'orange' },
+                    { type: 'internalCategory', value: 'מזון רטוב', label: 'מזון רטוב', colorScheme: 'orange' },
+                    { type: 'brand', value: 'רויאל קנין', label: 'רויאל קנין', colorScheme: 'teal' },
+                    { type: 'brand', value: 'הילס', label: 'הילס', colorScheme: 'teal' }
+                  ].map((shortcut, index) => (
+                    <TouchButton
+                      key={index}
+                      onClick={() => {
+                        handleFilterShortcutSelect(shortcut);
+                        setIsMobileSearchOpen(false);
+                      }}
+                      size="sm"
+                      variant="outline"
+                      colorScheme={shortcut.colorScheme || "brand"}
+                      fontSize="xs"
+                    >
+                      {shortcut.label}
+                    </TouchButton>
+                  ))}
+                </SimpleGrid>
+              </Box>
+            </VStack>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
 
       {/* PWA Components */}
       <InstallPrompt />
