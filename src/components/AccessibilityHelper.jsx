@@ -1,8 +1,6 @@
 import React, { useEffect } from 'react';
-import { useToast } from '@chakra-ui/react';
 
 const AccessibilityHelper = () => {
-  const toast = useToast();
 
   useEffect(() => {
     // Add ARIA labels and roles to improve accessibility
@@ -164,22 +162,6 @@ const AccessibilityHelper = () => {
     addKeyboardNavigation();
     addFocusManagement();
     addHighContrastSupport();
-
-    // Show accessibility info on first visit
-    const hasSeenAccessibilityInfo = localStorage.getItem('accessibility-info-shown');
-    if (!hasSeenAccessibilityInfo) {
-      setTimeout(() => {
-        toast({
-          title: 'נגישות',
-          description: 'האפליקציה תומכת בניווט מקלדת ותכונות נגישות נוספות',
-          status: 'info',
-          duration: 5000,
-          isClosable: true,
-          position: 'top',
-        });
-        localStorage.setItem('accessibility-info-shown', 'true');
-      }, 3000);
-    }
 
   }, [toast]);
 
