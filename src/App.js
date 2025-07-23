@@ -2188,26 +2188,6 @@ function App() {
     }
   }, [searchQuery, products.length]);
 
-  // Wait for search input ref to be ready and trigger search for LionWheel
-  useEffect(() => {
-    if (searchQuery && searchQuery.length >= 3 && searchInputRef.current) {
-      // Wait a bit for the Autocomplete component to initialize
-      const timer = setTimeout(() => {
-        if (searchInputRef.current && searchInputRef.current.search) {
-          console.log('🔍 Triggering search via Autocomplete component for LionWheel:', searchQuery);
-          searchInputRef.current.search(searchQuery);
-          
-          // Auto-select the best match after search
-          setTimeout(() => {
-            autoSelectBestMatch(searchQuery);
-          }, 1500); // Wait 1.5 seconds for search results to be ready
-        }
-      }, 1000); // Wait 1 second for Autocomplete to be ready
-      
-      return () => clearTimeout(timer);
-    }
-  }, [searchQuery, searchInputRef.current]);
-
   // Function to auto-select the best match for LionWheel integration
   const autoSelectBestMatch = useCallback((query) => {
     if (!products.length || !query) return;
@@ -2278,7 +2258,27 @@ function App() {
     }
     
     console.log('❌ No suitable match found for query:', query);
-  }, [products, handleSuggestionClick]); // Run when searchQuery or products change
+  }, [products, handleSuggestionClick]);
+
+  // Wait for search input ref to be ready and trigger search for LionWheel
+  useEffect(() => {
+    if (searchQuery && searchQuery.length >= 3 && searchInputRef.current) {
+      // Wait a bit for the Autocomplete component to initialize
+      const timer = setTimeout(() => {
+        if (searchInputRef.current && searchInputRef.current.search) {
+          console.log('🔍 Triggering search via Autocomplete component for LionWheel:', searchQuery);
+          searchInputRef.current.search(searchQuery);
+          
+          // Auto-select the best match after search
+          setTimeout(() => {
+            autoSelectBestMatch(searchQuery);
+          }, 1500); // Wait 1.5 seconds for search results to be ready
+        }
+      }, 1000); // Wait 1 second for Autocomplete to be ready
+      
+      return () => clearTimeout(timer);
+    }
+  }, [searchQuery, searchInputRef.current, autoSelectBestMatch]);
 
   const loadOrBuildIndex = async () => {
       try {
