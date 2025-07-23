@@ -2735,13 +2735,33 @@ function App() {
   ]);
 
   // Use filteredProducts when filters are active or product is selected
-  // Search results are only shown in the Autocomplete dropdown, not in the main grid
+  // For LionWheel integration: also show search results when searchQuery is present
   const displayProducts = useMemo(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 displayProducts calculation:', {
+        filteredProductsLength: filteredProducts.length,
+        searchQuery: searchQuery,
+        searchQueryLength: searchQuery.length,
+        searchResultsLength: searchResults.length,
+        hasActiveFilters: hasActiveFilters(),
+        selectedProduct: !!selectedProduct
+      });
+    }
+    
+    // If there's a search query and no filters are active, show search results
+    if (searchQuery && searchQuery.length >= 3 && !hasActiveFilters() && !selectedProduct) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔍 Showing search results for LionWheel:', searchResults.length, 'results');
+      }
+      return searchResults;
+    }
+    
+    // Otherwise, use filtered products (for filters and selected product)
     if (process.env.NODE_ENV === 'development') {
       console.log('🔍 Using filteredProducts:', filteredProducts.length, 'results');
     }
     return filteredProducts;
-  }, [filteredProducts]);
+  }, [filteredProducts, searchQuery, searchResults, hasActiveFilters, selectedProduct]);
 
   // Sort filtered products based on selected sort option
   // For RTL layout: highest/best values should appear on the right side
