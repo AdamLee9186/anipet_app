@@ -54,7 +54,10 @@
     "eject": "react-scripts eject",
     "dev": "set NODE_OPTIONS=--openssl-legacy-provider && MIGHTYMELD_API_KEY=YOUR_API_KEY_HERE craco start",
     "mightymeld": "set NODE_OPTIONS=--openssl-legacy-provider && MIGHTYMELD_API_KEY=YOUR_API_KEY_HERE craco start",
-    "clean": "node scripts/build-production.js"
+    "clean": "node scripts/build-production.js",
+    "compress": "node scripts/compress-and-verify.js",
+    "verify": "node scripts/verify-compressed.js",
+    "prebuild": "npm run compress"
   },
   "eslintConfig": {
     "extends": [
