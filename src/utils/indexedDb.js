@@ -63,6 +63,25 @@ export async function loadIndex() {
 
 /**
  * Clear the cached Fuse.js search index from IndexedDB
+ */
+export async function clearIndex() {
+  try {
+    console.log('🗑️ Attempting to clear index from IndexedDB...');
+    const db = await openDB(DB_NAME, 1, {
+      upgrade(db) {
+        db.createObjectStore(STORE_NAME);
+      },
+    });
+    console.log('🗑️ Database opened successfully');
+    await db.delete(STORE_NAME, KEY);
+    console.log('🗑️ Fuse index cleared from IndexedDB successfully');
+  } catch (error) {
+    console.error('❌ Failed to clear Fuse index from IndexedDB:', error);
+  }
+}
+
+/**
+ * Clear the cached Fuse.js search index from IndexedDB
  * Useful for forcing a fresh index rebuild
  */
 export async function clearIndex() {

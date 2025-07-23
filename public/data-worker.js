@@ -11,21 +11,16 @@ try {
   // console.warn('[Worker] Failed to load libraries:', error);
 }
 
-// Fuse.js configuration for search - optimized for autocomplete
+// Fuse.js configuration for search - optimized for autocomplete and smaller index
 const fuseConfig = {
   keys: [
     'productName',
     'brand',
-    'originalWeight',
-    'animalType',
-    'internalCategory',
-    'mainIngredient',
-    'sku',
-    'barcode'
+    'sku'
   ],
   threshold: 0.4, // More lenient threshold for better Hebrew text matching
   includeScore: true,
-  includeMatches: true,
+  includeMatches: false, // Disable to reduce index size
   minMatchCharLength: 2,
   ignoreLocation: true, // Better for autocomplete
   useExtendedSearch: true // ← זה חובה לחיפוש לפי מילים נפרדות

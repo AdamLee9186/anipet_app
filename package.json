@@ -57,6 +57,7 @@
     "clean": "node scripts/build-production.js",
     "compress": "node scripts/compress-and-verify.js",
     "verify": "node scripts/verify-compressed.js",
+    "clear-index": "node scripts/clear-index.js",
     "prebuild": "npm run compress"
   },
   "eslintConfig": {
