@@ -80,16 +80,4 @@ export async function clearIndex() {
   }
 }
 
-/**
- * Clear the cached Fuse.js search index from IndexedDB
- * Useful for forcing a fresh index rebuild
- */
-export async function clearIndex() {
-  try {
-    const db = await openDB(DB_NAME, 1);
-    await db.delete(STORE_NAME, KEY);
-    console.log('🗑️ Fuse index cleared from IndexedDB');
-  } catch (error) {
-    console.error('❌ Failed to clear Fuse index from IndexedDB:', error);
-  }
-} 
+ 
