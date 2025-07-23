@@ -8,6 +8,11 @@
   DISABLE_ESLINT_PLUGIN = "true"
 
 [[redirects]]
+  from = "/public/*"
+  to = "/public/:splat"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
