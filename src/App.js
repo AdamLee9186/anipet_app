@@ -1940,16 +1940,13 @@ function App() {
             console.log('✅ Using existing cached index, loading products directly');
             
             // Load products data directly without using worker
-            const response = await fetch('/data/anipet_products_optimized.min.json.gz');
+            const response = await fetch('/data/anipet_products_optimized.min.json');
             if (!response.ok) {
               throw new Error(`HTTP error! status: ${response.status}`);
             }
             
-            // Decompress the data directly in the main thread
-            const arrayBuffer = await response.arrayBuffer();
-            if (typeof pako !== 'undefined') {
-              const decompressed = pako.inflate(arrayBuffer, { to: 'string' });
-              const jsonData = JSON.parse(decompressed);
+            // Load the JSON data directly (no decompression needed)
+            const jsonData = await response.json();
               
               // Transform the products data
               const allProducts = transformProducts(jsonData);
@@ -1965,10 +1962,7 @@ function App() {
               
               setLoading(false);
               worker.terminate();
-            } else {
-              throw new Error('pako library not available for decompression');
-            }
-            
+              
           } catch (error) {
             console.error('❌ Failed to load products directly:', error);
             // Fall back to worker approach
