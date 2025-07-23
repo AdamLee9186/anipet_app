@@ -12,6 +12,19 @@ body {
   font-family: "Rubik", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  font-family: 'Rubik', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  direction: rtl;
+  text-align: right;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
 }
 
 /* Apply Rubik to all elements */
@@ -504,4 +517,192 @@ img {
 .my-dense-grid > * {
   direction: rtl !important;
   text-align: right !important;
+}
+
+/* PWA Splash Screen Styles */
+@media (display-mode: standalone) {
+  body {
+    /* Prevent overscroll bounce on iOS */
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Splash Screen Animation */
+.splash-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 1;
+  transition: opacity 0.3s ease-out;
+}
+
+.splash-screen.fade-out {
+  opacity: 0;
+}
+
+.splash-logo {
+  width: 120px;
+  height: 120px;
+  margin-bottom: 24px;
+  animation: pulse 2s infinite;
+}
+
+.splash-title {
+  color: white;
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.splash-subtitle {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 16px;
+  text-align: center;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Accessibility Styles */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (prefers-contrast: high) {
+  * {
+    border: 1px solid !important;
+  }
+  
+  button, a {
+    background: black !important;
+    color: white !important;
+    border: 2px solid white !important;
+  }
+  
+  input, select, textarea {
+    border: 2px solid black !important;
+    background: white !important;
+    color: black !important;
+  }
+}
+
+/* Focus styles for accessibility */
+*:focus {
+  outline: 2px solid #1d4ed8 !important;
+  outline-offset: 2px !important;
+}
+
+/* Skip link styles */
+#skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: #1d4ed8;
+  color: white;
+  padding: 8px 16px;
+  text-decoration: none;
+  border-radius: 4px;
+  z-index: 10000;
+  font-family: 'Rubik', sans-serif;
+  transition: top 0.3s ease;
+}
+
+#skip-link:focus {
+  top: 6px;
+}
+
+/* High contrast mode for better accessibility */
+@media (prefers-contrast: high) {
+  .splash-screen {
+    background: black !important;
+  }
+  
+  .splash-title {
+    color: white !important;
+  }
+  
+  .splash-subtitle {
+    color: white !important;
+  }
+}
+
+/* Mobile-specific splash screen adjustments */
+@media (max-width: 768px) {
+  .splash-logo {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .splash-title {
+    font-size: 24px;
+  }
+  
+  .splash-subtitle {
+    font-size: 14px;
+  }
+}
+
+/* Tablet-specific splash screen adjustments */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .splash-logo {
+    width: 140px;
+    height: 140px;
+  }
+  
+  .splash-title {
+    font-size: 32px;
+  }
+  
+  .splash-subtitle {
+    font-size: 18px;
+  }
+}
+
+/* Landscape orientation adjustments */
+@media (orientation: landscape) and (max-height: 500px) {
+  .splash-screen {
+    flex-direction: row;
+    gap: 24px;
+  }
+  
+  .splash-logo {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 0;
+  }
+  
+  .splash-title {
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+  
+  .splash-subtitle {
+    font-size: 14px;
+  }
 }

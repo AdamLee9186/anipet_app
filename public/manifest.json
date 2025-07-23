@@ -1,7 +1,7 @@
 {
-  "short_name": "חנות חיות מחמד",
-  "name": "מאתר מוצרים תחליפיים לחנות חיות מחמד",
-  "description": "חיפוש מוצרים תחליפיים לחיות מחמד עם ממשק עברי",
+  "short_name": "אניפט",
+  "name": "אניפט - חיפוש תחליפים",
+  "description": "אניפט - חיפוש תחליפים למוצרי חיות מחמד",
   "icons": [
     {
       "src": "favicon.ico",
@@ -35,12 +35,39 @@
   ],
   "start_url": ".",
   "display": "standalone",
-
   "background_color": "#ffffff",
+  "theme_color": "#1d4ed8",
   "lang": "he",
   "dir": "rtl",
   "orientation": "portrait-primary",
   "scope": "/",
   "categories": ["shopping", "pets", "lifestyle"],
-  "screenshots": []
+  "screenshots": [
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "icon-384.png", 
+      "sizes": "384x384",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "חיפוש מוצרים",
+      "short_name": "חיפוש",
+      "description": "חיפוש מהיר של מוצרי חיות מחמד",
+      "url": "/?action=search",
+      "icons": [
+        {
+          "src": "icon-96.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ]
 } 

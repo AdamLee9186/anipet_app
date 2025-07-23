@@ -34,6 +34,10 @@ import {
 import SimilarityBreakdownBar from './components/SimilarityBreakdownBar';
 import { TAG_META } from './components/SimilarityBreakdownBar';
 import LoadingFallback from './components/LoadingFallback';
+import InstallPrompt from './components/InstallPrompt';
+import OfflineIndicator from './components/OfflineIndicator';
+import AccessibilityHelper from './components/AccessibilityHelper';
+import SplashScreen from './components/SplashScreen';
 import copy from 'copy-to-clipboard';
 import Masonry from 'react-masonry-css';
 import { getFullSizeImageUrl } from './utils/getFullSizeImageUrl';
@@ -1461,6 +1465,9 @@ function App() {
   const toast = useToast();
   const toastRef = useRef(toast);
   toastRef.current = toast;
+  
+  // Splash screen state
+  const [showSplash, setShowSplash] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [products, setProducts] = useState([]);
   const [preview, setPreview] = useState({ isOpen: false, url: '', alt: '', loading: false });
@@ -3973,6 +3980,16 @@ function App() {
             />
           </Box>
         </Box>
+      )}
+
+      {/* PWA Components */}
+      <InstallPrompt />
+      <OfflineIndicator />
+      <AccessibilityHelper />
+
+      {/* Splash Screen */}
+      {showSplash && (
+        <SplashScreen onComplete={() => setShowSplash(false)} />
       )}
 
     </Box>
