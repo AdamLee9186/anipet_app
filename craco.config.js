@@ -1,6 +1,10 @@
 module.exports = {
   webpack: {
     configure: (webpackConfig) => {
+      // Disable ESLint plugin
+      webpackConfig.plugins = webpackConfig.plugins.filter(
+        plugin => plugin.constructor.name !== 'ESLintWebpackPlugin'
+      );
       // Add support for .mjs files
       webpackConfig.module.rules.push({
         test: /\.mjs$/,

@@ -48,7 +48,7 @@
   },
   "scripts": {
     "start": "set NODE_OPTIONS=--openssl-legacy-provider && craco start",
-    "build": "set NODE_OPTIONS=--openssl-legacy-provider && set DISABLE_ESLINT_PLUGIN=true && craco build",
+    "build": "set NODE_OPTIONS=--openssl-legacy-provider && set DISABLE_ESLINT_PLUGIN=true && set GENERATE_SOURCEMAP=false && craco build",
     "build:prod": "set NODE_OPTIONS=--openssl-legacy-provider && set DISABLE_ESLINT_PLUGIN=true && craco build && node scripts/build-production.js",
     "test": "craco test",
     "eject": "react-scripts eject",
@@ -64,7 +64,8 @@
     "extends": [
       "react-app",
       "react-app/jest"
-    ]
+    ],
+    "ignorePatterns": ["**/*"]
   },
   "browserslist": {
     "production": [
