@@ -2116,6 +2116,39 @@ function App() {
     loadOrBuildIndex();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Handle URL parameters for LionWheel integration
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const searchFromUrl = urlParams.get('search');
+    const barcodeFromUrl = urlParams.get('barcode');
+    const productNameFromUrl = urlParams.get('product');
+    
+    if (searchFromUrl || barcodeFromUrl || productNameFromUrl) {
+      const searchTerm = searchFromUrl || barcodeFromUrl || productNameFromUrl;
+      console.log('🔗 LionWheel URL parameter detected:', searchTerm);
+      
+      // Set the search input value
+      setSearchInputValue(searchTerm);
+      setSearchQuery(searchTerm);
+      
+      // Clear any selected product
+      setSelectedProduct(null);
+      
+      // Show toast notification
+      toast({
+        title: "חיפוש אוטומטי מ-LionWheel",
+        description: `מחפש: ${searchTerm}`,
+        status: "info",
+        duration: 4000,
+        isClosable: true,
+      });
+      
+      // Clear the URL parameters after processing
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+  }, []); // Run once on app load
+
   const loadOrBuildIndex = async () => {
       try {
         setLoading(true);
