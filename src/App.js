@@ -2188,78 +2188,6 @@ function App() {
     }
   }, [searchQuery, products.length]);
 
-  // Function to auto-select the best match for LionWheel integration
-  const autoSelectBestMatch = useCallback((query) => {
-    if (!products.length || !query) return;
-    
-    console.log('🎯 Auto-selecting best match for query:', query);
-    
-    // First, try exact barcode match
-    const exactBarcodeMatch = products.find(product => 
-      product.barcode && product.barcode.toString().trim() === query.trim()
-    );
-    
-    if (exactBarcodeMatch) {
-      console.log('✅ Found exact barcode match:', exactBarcodeMatch.productName);
-      handleSuggestionClick(exactBarcodeMatch);
-      return;
-    }
-    
-    // Second, try exact SKU match
-    const exactSkuMatch = products.find(product => 
-      product.sku && product.sku.toString().trim() === query.trim()
-    );
-    
-    if (exactSkuMatch) {
-      console.log('✅ Found exact SKU match:', exactSkuMatch.productName);
-      handleSuggestionClick(exactSkuMatch);
-      return;
-    }
-    
-    // Third, try exact product name match
-    const exactNameMatch = products.find(product => 
-      product.productName && product.productName.toLowerCase().trim() === query.toLowerCase().trim()
-    );
-    
-    if (exactNameMatch) {
-      console.log('✅ Found exact name match:', exactNameMatch.productName);
-      handleSuggestionClick(exactNameMatch);
-      return;
-    }
-    
-    // Fourth, try partial matches and select the best one
-    const searchTerm = query.toLowerCase();
-    const matches = products.filter(product => 
-      product.productName?.toLowerCase().includes(searchTerm) ||
-      product.brand?.toLowerCase().includes(searchTerm) ||
-      product.barcode?.toString().includes(searchTerm) ||
-      product.sku?.toString().includes(searchTerm)
-    );
-    
-    if (matches.length > 0) {
-      // Sort by relevance (exact matches first, then by brand, then by name)
-      const sortedMatches = matches.sort((a, b) => {
-        // Exact matches get highest priority
-        if (a.productName?.toLowerCase() === searchTerm && b.productName?.toLowerCase() !== searchTerm) return -1;
-        if (b.productName?.toLowerCase() === searchTerm && a.productName?.toLowerCase() !== searchTerm) return 1;
-        
-        // Brand matches get second priority
-        if (a.brand?.toLowerCase() === searchTerm && b.brand?.toLowerCase() !== searchTerm) return -1;
-        if (b.brand?.toLowerCase() === searchTerm && a.brand?.toLowerCase() !== searchTerm) return 1;
-        
-        // Then sort by name length (shorter names are usually more specific)
-        return (a.productName?.length || 0) - (b.productName?.length || 0);
-      });
-      
-      const bestMatch = sortedMatches[0];
-      console.log('✅ Found best partial match:', bestMatch.productName);
-      handleSuggestionClick(bestMatch);
-      return;
-    }
-    
-    console.log('❌ No suitable match found for query:', query);
-  }, [products, handleSuggestionClick]);
-
   // Wait for search input ref to be ready and trigger search for LionWheel
   useEffect(() => {
     if (searchQuery && searchQuery.length >= 3 && searchInputRef.current) {
@@ -3374,6 +3302,78 @@ function App() {
     };
     setActiveFilters(newActiveFilters);
   }, []);
+
+  // Function to auto-select the best match for LionWheel integration
+  const autoSelectBestMatch = useCallback((query) => {
+    if (!products.length || !query) return;
+    
+    console.log('🎯 Auto-selecting best match for query:', query);
+    
+    // First, try exact barcode match
+    const exactBarcodeMatch = products.find(product => 
+      product.barcode && product.barcode.toString().trim() === query.trim()
+    );
+    
+    if (exactBarcodeMatch) {
+      console.log('✅ Found exact barcode match:', exactBarcodeMatch.productName);
+      handleSuggestionClick(exactBarcodeMatch);
+      return;
+    }
+    
+    // Second, try exact SKU match
+    const exactSkuMatch = products.find(product => 
+      product.sku && product.sku.toString().trim() === query.trim()
+    );
+    
+    if (exactSkuMatch) {
+      console.log('✅ Found exact SKU match:', exactSkuMatch.productName);
+      handleSuggestionClick(exactSkuMatch);
+      return;
+    }
+    
+    // Third, try exact product name match
+    const exactNameMatch = products.find(product => 
+      product.productName && product.productName.toLowerCase().trim() === query.toLowerCase().trim()
+    );
+    
+    if (exactNameMatch) {
+      console.log('✅ Found exact name match:', exactNameMatch.productName);
+      handleSuggestionClick(exactNameMatch);
+      return;
+    }
+    
+    // Fourth, try partial matches and select the best one
+    const searchTerm = query.toLowerCase();
+    const matches = products.filter(product => 
+      product.productName?.toLowerCase().includes(searchTerm) ||
+      product.brand?.toLowerCase().includes(searchTerm) ||
+      product.barcode?.toString().includes(searchTerm) ||
+      product.sku?.toString().includes(searchTerm)
+    );
+    
+    if (matches.length > 0) {
+      // Sort by relevance (exact matches first, then by brand, then by name)
+      const sortedMatches = matches.sort((a, b) => {
+        // Exact matches get highest priority
+        if (a.productName?.toLowerCase() === searchTerm && b.productName?.toLowerCase() !== searchTerm) return -1;
+        if (b.productName?.toLowerCase() === searchTerm && a.productName?.toLowerCase() !== searchTerm) return 1;
+        
+        // Brand matches get second priority
+        if (a.brand?.toLowerCase() === searchTerm && b.brand?.toLowerCase() !== searchTerm) return -1;
+        if (b.brand?.toLowerCase() === searchTerm && a.brand?.toLowerCase() !== searchTerm) return 1;
+        
+        // Then sort by name length (shorter names are usually more specific)
+        return (a.productName?.length || 0) - (b.productName?.length || 0);
+      });
+      
+      const bestMatch = sortedMatches[0];
+      console.log('✅ Found best partial match:', bestMatch.productName);
+      handleSuggestionClick(bestMatch);
+      return;
+    }
+    
+    console.log('❌ No suitable match found for query:', query);
+  }, [products, handleSuggestionClick]);
 
   // Image preview functions
   const handleOpenPreview = useCallback((url, alt, product) => {
