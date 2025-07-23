@@ -5,7 +5,7 @@
 // @description  Add Anipet pixel icon button to LionWheel products (barcode search) - new column after barcode
 // @author       Adam Lee
 // @match        https://members.lionwheel.com/*
-// @updateURL    https://anipetapp.netlify.app/public/lionwheel.js
+// @updateURL    https://anipetapp.netlify.app/lionwheel.js
 // @grant        none
 // ==/UserScript==
 
