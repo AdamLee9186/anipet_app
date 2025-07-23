@@ -736,13 +736,19 @@ const Autocomplete = React.forwardRef(function Autocomplete({
           console.log('Search index is ready');
           break;
         case 'searchResults':
-          console.log('Search results received:', searchResults?.length, 'shortcuts:', shortcuts?.length);
-          setResults(searchResults);
-          setShortcuts(shortcuts); // Update shortcuts state
-          setActiveIdx(0);
-          // Only open dropdown if not suppressed
+          console.log('Search results received:', searchResults?.length, 'shortcuts:', shortcuts?.length, 'suppressDropdown:', suppressDropdown);
+          // Only update results and open dropdown if not suppressed
           if (!suppressDropdown) {
+            setResults(searchResults);
+            setShortcuts(shortcuts); // Update shortcuts state
+            setActiveIdx(0);
             setIsOpen(true);
+          } else {
+            // For suppressed searches, just clear any existing results and don't open dropdown
+            setResults([]);
+            setShortcuts([]);
+            setActiveIdx(-1);
+            setIsOpen(false);
           }
           setIsSearching(false);
           // Reset suppressDropdown after search is complete
