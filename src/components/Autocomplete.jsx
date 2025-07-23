@@ -673,6 +673,7 @@ const Autocomplete = React.forwardRef(function Autocomplete({
   const [isSearching, setIsSearching] = useState(false);
   const [displayedResults, setDisplayedResults] = useState([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [suppressDropdown, setSuppressDropdown] = useState(false);
 
   const inputRef = useRef(null);
   const actualInputRef = useRef(null);
@@ -739,8 +740,13 @@ const Autocomplete = React.forwardRef(function Autocomplete({
           setResults(searchResults);
           setShortcuts(shortcuts); // Update shortcuts state
           setActiveIdx(0);
-          setIsOpen(true);
+          // Only open dropdown if not suppressed
+          if (!suppressDropdown) {
+            setIsOpen(true);
+          }
           setIsSearching(false);
+          // Reset suppressDropdown after search is complete
+          setSuppressDropdown(false);
           break;
         case 'error':
           console.error('Search worker error:', error);
@@ -809,12 +815,25 @@ const Autocomplete = React.forwardRef(function Autocomplete({
   );
 
   // Expose search function via ref for external use (LionWheel integration)
-  const searchFunction = useCallback((query) => {
-    console.log('🔍 External search called with query:', query);
+  const searchFunction = useCallback((query, shouldSuppressDropdown = false) => {
+    console.log('🔍 External search called with query:', query, 'suppressDropdown:', shouldSuppressDropdown);
     if (query && query.length >= 3) {
-      search(query);
+      if (shouldSuppressDropdown) {
+        // Perform search without opening dropdown
+        setSuppressDropdown(true);
+        if (isWorkerReady && workerRef.current) {
+          setIsSearching(true);
+          workerRef.current.postMessage({ 
+            type: 'search', 
+            data: { query: query } 
+          });
+        }
+      } else {
+        setSuppressDropdown(false);
+        search(query);
+      }
     }
-  }, [search]);
+  }, [search, isWorkerReady]);
 
   const handleChange = useCallback((e) => {
     const value = e.target.value;

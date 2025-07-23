@@ -3364,7 +3364,7 @@ function App() {
       const timer = setTimeout(() => {
         if (searchInputRef.current && searchInputRef.current.search) {
           console.log('🔍 Triggering search via Autocomplete component for LionWheel:', searchQuery);
-          searchInputRef.current.search(searchQuery);
+          searchInputRef.current.search(searchQuery, true); // suppressDropdown = true
           
           // Auto-select the best match after search
           setTimeout(() => {
