@@ -90,7 +90,7 @@ const createSearchWorker = () => {
           { field: 'brand', type: 'brand', label: 'מותג' },
           { field: 'supplierName', type: 'supplierName', label: 'ספק' },
           { field: 'lifeStage', type: 'lifeStage', label: 'גיל' },
-          { field: 'parentCategory', type: 'parentCategory', label: 'קבוצה' },
+          { field: 'animalType', type: 'parentCategory', label: 'קבוצה' }, // שימוש ב-animalType במקום parentCategory
           { field: 'internalCategory', type: 'internalCategory', label: 'קטגוריה' },
           { field: 'mainIngredient', type: 'mainIngredient', label: 'מרכיב עיקרי' },
           { field: 'medicalIssue', type: 'medicalIssue', label: 'בעיה רפואית' },
