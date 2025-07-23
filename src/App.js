@@ -2134,12 +2134,12 @@ function App() {
       // Clear any selected product
       setSelectedProduct(null);
       
-      // Show toast notification
+      // Show brief toast notification
       toast({
-        title: "חיפוש אוטומטי מ-LionWheel",
+        title: "חיפוש אוטומטי",
         description: `מחפש: ${searchTerm}`,
         status: "info",
-        duration: 4000,
+        duration: 2000,
         isClosable: true,
       });
       
@@ -2197,21 +2197,14 @@ function App() {
         
         // Try to load cached index first
         const cachedIndex = await loadIndex();
-        console.log('🔍 loadIndex() returned:', cachedIndex);
-        console.log('🔍 cachedIndex type:', typeof cachedIndex);
-        console.log('🔍 cachedIndex is null:', cachedIndex === null);
-        console.log('🔍 cachedIndex is undefined:', cachedIndex === undefined);
         if (cachedIndex) {
-          console.log('🔍 cachedIndex keys:', Object.keys(cachedIndex));
-          console.log('🔍 cachedIndex size:', JSON.stringify(cachedIndex).length, 'bytes');
+          console.log('🔍 Using cached index, size:', (JSON.stringify(cachedIndex).length / 1024 / 1024).toFixed(2), 'MB');
         }
         
         // Create Web Worker for data loading
         const worker = new Worker('/data-worker.js');
         
         worker.onmessage = function(e) {
-          console.log('📨 Worker message received:', e.data.type);
-          console.log('📨 Full worker message:', e.data);
           if (e.data.type === 'dataLoaded') {
             const responseData = e.data.data;
             // Handle both old format (with products property) and new format (direct array)
@@ -2223,36 +2216,19 @@ function App() {
               setError(null);
               
               // The worker will handle building the index and send it via indexReady message
-              console.log('✅ Products loaded, waiting for index from worker...');
             }
             setLoading(false);
             worker.terminate();
           } else if (e.data.type === 'indexReady') {
-            console.log('📥 Received indexReady message from worker');
             // Save the index to IndexedDB only if we're not skipping rebuild
             const indexData = e.data.payload;
-            console.log('📥 Received index from worker, size:', JSON.stringify(indexData).length);
-            console.log('📥 Index data type:', typeof indexData);
-            console.log('📥 Index data keys:', Object.keys(indexData || {}));
             
-            // Only save if we're not using cached index
-            console.log('🔍 skipSave flag:', e.data.skipSave);
             if (!e.data.skipSave) {
-              console.log('💾 Saving new index to IndexedDB...');
               saveIndex(indexData).then(() => {
                 console.log('🚀 Index saved to IndexedDB');
-                toastRef.current({
-                  title: "אינדקס נשמר",
-                  description: "אינדקס החיפוש נשמר בדפדפן",
-                  status: "success",
-                  duration: 2000,
-                  isClosable: true,
-                });
               }).catch(error => {
                 console.error('❌ Failed to save index:', error);
               });
-            } else {
-              console.log('✅ Skipping index save - using existing cached index');
             }
           } else if (e.data.type === 'error') {
             setError('שגיאה בטעינת הנתונים');
@@ -2271,18 +2247,9 @@ function App() {
         
         // Start loading data
         if (cachedIndex) {
-          console.log('🔍 Using cached index from IndexedDB');
-          console.log('🔍 Cached index size:', (JSON.stringify(cachedIndex).length / 1024 / 1024).toFixed(2), 'MB');
-          toastRef.current({
-            title: "טוען אינדקס שמור",
-            description: "משתמש באינדקס החיפוש השמור בדפדפן",
-            status: "success",
-            duration: 2000,
-            isClosable: true,
-          });
           // Check if the cachedIndex is too large for postMessage
           const indexSize = JSON.stringify(cachedIndex).length;
-          const maxSize = 10 * 1024 * 1024; // 10MB limit (reduced from 50MB)
+          const maxSize = 10 * 1024 * 1024; // 10MB limit
           
           if (indexSize > maxSize) {
             console.warn('⚠️ Cached index is very large:', (indexSize / 1024 / 1024).toFixed(2), 'MB');

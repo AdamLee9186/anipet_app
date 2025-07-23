@@ -26,17 +26,18 @@ const fuseConfig = {
   useExtendedSearch: true // ← זה חובה לחיפוש לפי מילים נפרדות
 };
 
-// Progress reporting function
+// Progress reporting function (disabled for performance)
 function reportProgress(stage, current, total) {
-  self.postMessage({
-    type: 'progress',
-    data: {
-      stage,
-      current,
-      total,
-      percentage: Math.round((current / total) * 100)
-    }
-  });
+  // Disabled for better performance
+  // self.postMessage({
+  //   type: 'progress',
+  //   data: {
+  //     stage,
+  //     current,
+  //     total,
+  //     percentage: Math.round((current / total) * 100)
+  //   }
+  // });
 }
 
 // Optimized weight parsing with caching
@@ -400,9 +401,9 @@ function transformProducts(jsonData) {
 // Message handler
 self.onmessage = function(e) {
   const { type, data } = e.data;
-  console.log('[Worker] Received message:', type);
-  console.log('[Worker] Message data:', data);
-  console.log('[Worker] cachedIndex in data:', data?.cachedIndex ? 'YES' : 'NO');
+          // console.log('[Worker] Received message:', type);
+        // console.log('[Worker] Message data:', data);
+        // console.log('[Worker] cachedIndex in data:', data?.cachedIndex ? 'YES' : 'NO');
   
   switch (type) {
     case 'loadData':
@@ -415,15 +416,15 @@ self.onmessage = function(e) {
       }
       
       // Load data in priority order: .min.json -> .json (fallback)
-      console.log('[Worker] Starting data loading with priority order...');
+              // console.log('[Worker] Starting data loading with priority order...');
       
       // Helper function to process loaded data
       async function processLoadedData(jsonData, source) {
         reportProgress('Transforming data', 50, 100);
-        console.log(`[Worker] Loading from ${source}`);
-        console.log(`[Worker] JSON data length:`, jsonData.length);
+        // console.log(`[Worker] Loading from ${source}`);
+        // console.log(`[Worker] JSON data length:`, jsonData.length);
         allProducts = transformProducts(jsonData);
-        console.log(`[Worker] Transformed products:`, allProducts.length);
+        // console.log(`[Worker] Transformed products:`, allProducts.length);
         
         // Check for duplicate barcodes
         const barcodeCounts = {};
@@ -571,7 +572,7 @@ self.onmessage = function(e) {
         const weightRange = getRangeValues(allProducts, 'weight');
         
         reportProgress('Loading complete', 100, 100);
-        console.log('[Worker] Sending dataLoaded message with', allProducts.length, 'products');
+        // console.log('[Worker] Sending dataLoaded message with', allProducts.length, 'products');
         self.postMessage({
           type: 'dataLoaded',
           data: {
