@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LionWheel to Anipet Alternatives
 // @namespace    http://tampermonkey.net/
-// @version      2.4
+// @version      2.5
 // @description  Add Anipet pixel icon button to LionWheel products (barcode search) - new column after barcode
 // @author       Adam Lee
 // @match        https://members.lionwheel.com/*
@@ -40,7 +40,7 @@
                 return null;
             }
             
-            const button = document.createElement('button');
+        const button = document.createElement('button');
             button.className = BUTTON_CLASS;
             button.type = 'button';
             button.title = 'חפש תחליפים';
@@ -107,16 +107,16 @@
             button.innerHTML = svgIcon;
 
             // Enhanced hover animations
-            button.onmouseover = function() {
+        button.onmouseover = function() {
                 button.style.transform = 'scale(1.1)';
                 button.style.filter = 'drop-shadow(0 0 4px #3182ce) brightness(1.2)';
                 const svg = button.querySelector('svg');
                 if (svg) {
                     svg.style.filter = 'brightness(1.3)';
                 }
-            };
-            
-            button.onmouseout = function() {
+        };
+        
+        button.onmouseout = function() {
                 button.style.transform = 'scale(1)';
                 button.style.filter = '';
                 const svg = button.querySelector('svg');
@@ -132,8 +132,8 @@
                 
                 try {
                     const searchUrl = `${ANIPET_APP_URL}?barcode=${encodeURIComponent(barcode)}`;
-                    window.open(searchUrl, '_blank');
-                    
+            window.open(searchUrl, '_blank');
+            
                     // Visual feedback
                     button.disabled = true;
                     button.style.transform = 'scale(0.95)';
@@ -141,8 +141,8 @@
                     if (svg) {
                         svg.style.filter = 'grayscale(1) brightness(1.5)';
                     }
-                    
-                    setTimeout(() => {
+            
+            setTimeout(() => {
                         button.disabled = false;
                         button.style.transform = 'scale(1)';
                         if (svg) {
@@ -153,9 +153,9 @@
                     console.error('Error opening Anipet search:', error);
                     button.disabled = false;
                 }
-            };
-            
-            return button;
+        };
+        
+        return button;
         } catch (error) {
             console.error('Error creating button:', error);
             errorCount++;
