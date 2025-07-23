@@ -15,7 +15,7 @@
 
     const ANIPET_APP_URL = 'https://anipetapp.netlify.app';
     const BUTTON_CLASS = 'anipet-alternatives-btn';
-    const ICON_URL = 'https://anipetapp.netlify.app/public/pixel.svg';
+    const ICON_URL = 'https://anipetapp.netlify.app/pixel.svg';
     const DEBOUNCE_DELAY = 100;
     const RETRY_INTERVAL = 1000;
     const RECHECK_INTERVAL = 5000;
