@@ -163,7 +163,7 @@ const AccessibilityHelper = () => {
     addFocusManagement();
     addHighContrastSupport();
 
-  }, [toast]);
+  }, []);
 
   return null; // This component doesn't render anything
 };
