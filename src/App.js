@@ -2186,7 +2186,22 @@ function App() {
       // Disable variety filter to show all results (including non-variety products)
       setVarietyOnly(false);
     }
-  }, [searchQuery, products.length]); // Run when searchQuery or products change
+  }, [searchQuery, products.length]);
+
+  // Wait for search input ref to be ready and trigger search for LionWheel
+  useEffect(() => {
+    if (searchQuery && searchQuery.length >= 3 && searchInputRef.current) {
+      // Wait a bit for the Autocomplete component to initialize
+      const timer = setTimeout(() => {
+        if (searchInputRef.current && searchInputRef.current.search) {
+          console.log('🔍 Triggering search via Autocomplete component for LionWheel:', searchQuery);
+          searchInputRef.current.search(searchQuery);
+        }
+      }, 1000); // Wait 1 second for Autocomplete to be ready
+      
+      return () => clearTimeout(timer);
+    }
+  }, [searchQuery, searchInputRef.current]); // Run when searchQuery or products change
 
   const loadOrBuildIndex = async () => {
       try {

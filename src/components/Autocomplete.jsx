@@ -808,6 +808,14 @@ const Autocomplete = React.forwardRef(function Autocomplete({
     [isWorkerReady]
   );
 
+  // Expose search function via ref for external use (LionWheel integration)
+  const searchFunction = useCallback((query) => {
+    console.log('🔍 External search called with query:', query);
+    if (query && query.length >= 3) {
+      search(query);
+    }
+  }, [search]);
+
   const handleChange = useCallback((e) => {
     const value = e.target.value;
     setQuery(value);
@@ -880,7 +888,8 @@ const Autocomplete = React.forwardRef(function Autocomplete({
       if (actualInputRef.current && typeof actualInputRef.current.focus === 'function') {
         actualInputRef.current.focus();
       }
-    }
+    },
+    search: searchFunction
   }));
 
   const handleFocus = useCallback(() => {
