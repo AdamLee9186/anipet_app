@@ -6,6 +6,7 @@
 // @author       Adam Lee
 // @match        https://members.lionwheel.com/*
 // @updateURL    https://anipetapp.netlify.app/lionwheel.js
+// @downloadURL  https://anipetapp.netlify.app/lionwheel.js
 // @grant        none
 // ==/UserScript==
 
