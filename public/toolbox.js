@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lionwheel - Anipet Toolbox
 // @namespace    anipet-toolbox-merged
-// @version      13.4.1
+// @version      13.4.2
 // @description  AIO Script: Image Finder, Barcode Replacer, Previews, Responsive Views & more, all controlled from the Tampermonkey menu.
 // @match        *://*.lionwheel.com/*
 // @updateURL    https://anipetapp.netlify.app/toolbox.js
@@ -33,7 +33,7 @@
     }
     // ---< Main Anipet Toolbox Script >---
     const SCRIPT_NAME = "Lionwheel - Anipet Toolbox";
-    const SCRIPT_VERSION = "13.4.1"; // Fixed to match @version
+    const SCRIPT_VERSION = "13.4.2"; // Fixed to match @version
     console.log(`✅ ${SCRIPT_NAME} v${SCRIPT_VERSION} loaded.`);
 
     // ---< Constants >---
@@ -1651,58 +1651,60 @@ function copyWithFeedback(element, text) {
 
 })(); //
 
-// ---< Merlog Row Highlighting >---
-function highlightMerlogRows() {
-    if (!settings.highlightMerlog) return;
-    
-    try {
-        const table = document.querySelector('#operator-store-visits-table');
-        if (!table) return;
+    // ---< Merlog Row Highlighting >---
+    function highlightMerlogRows() {
+        if (!settings.highlightMerlog) return;
+        
+        try {
+            const table = document.querySelector('#operator-store-visits-table');
+            if (!table) return;
 
-        const thead = table.querySelector('thead tr');
-        if (!thead) return;
+            const thead = table.querySelector('thead tr');
+            if (!thead) return;
 
-        // Find column indices by header names
-        const headers = Array.from(thead.querySelectorAll('th')).map(th => th.textContent.trim());
-        const driverIndex = headers.findIndex(header => header === 'נהג');
-        const areaIndex = headers.findIndex(header => header === 'איזור חלוקה');
+            // Find column indices by header names
+            const headers = Array.from(thead.querySelectorAll('th')).map(th => th.textContent.trim());
+            const driverIndex = headers.findIndex(header => header === 'נהג');
+            const areaIndex = headers.findIndex(header => header === 'איזור חלוקה');
 
-        if (driverIndex === -1 && areaIndex === -1) return;
+            if (driverIndex === -1 && areaIndex === -1) return;
 
-        // Process each row
-        table.querySelectorAll('tbody tr').forEach(row => {
-            let shouldHighlight = false;
+            // Process each row
+            table.querySelectorAll('tbody tr').forEach(row => {
+                let shouldHighlight = false;
 
-            // Check driver column
-            if (driverIndex !== -1) {
-                const driverCell = row.cells[driverIndex];
-                if (driverCell) {
-                    const driverText = driverCell.textContent.trim();
-                    if (driverText.includes('מרלוג') || driverText.includes('למרלוג')) {
-                        shouldHighlight = true;
+                // Check driver column
+                if (driverIndex !== -1) {
+                    const driverCell = row.cells[driverIndex];
+                    if (driverCell) {
+                        const driverText = driverCell.textContent.trim();
+                        if (driverText.includes('מרלוג') || driverText.includes('למרלוג')) {
+                            shouldHighlight = true;
+                        }
                     }
                 }
-            }
 
-            // Check area column
-            if (areaIndex !== -1) {
-                const areaCell = row.cells[areaIndex];
-                if (areaCell) {
-                    const areaText = areaCell.textContent.trim();
-                    if (areaText.includes('מרלוג')) {
-                        shouldHighlight = true;
+                // Check area column
+                if (areaIndex !== -1) {
+                    const areaCell = row.cells[areaIndex];
+                    if (areaCell) {
+                        const areaText = areaCell.textContent.trim();
+                        if (areaText.includes('מרלוג')) {
+                            shouldHighlight = true;
+                        }
                     }
                 }
-            }
 
-            // Apply highlighting
-            if (shouldHighlight) {
-                row.classList.add('merlog-highlight');
-            } else {
-                row.classList.remove('merlog-highlight');
-            }
-        });
-    } catch (error) {
-        console.error(`[${SCRIPT_NAME}] Error highlighting Merlog rows:`, error);
+                // Apply highlighting
+                if (shouldHighlight) {
+                    row.classList.add('merlog-highlight');
+                } else {
+                    row.classList.remove('merlog-highlight');
+                }
+            });
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error highlighting Merlog rows:`, error);
+        }
     }
-}
+
+    // ---< Main Execution & Control Flow >---
