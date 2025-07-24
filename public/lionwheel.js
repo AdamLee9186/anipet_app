@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LionWheel to Anipet Alternatives
 // @namespace    http://tampermonkey.net/
-// @version      2.7
+// @version      2.8
 // @description  Add Anipet pixel icon button to LionWheel products (barcode search) - new column after barcode
 // @author       Adam Lee
 // @match        https://members.lionwheel.com/*
@@ -363,6 +363,9 @@
             
             isInitialized = true;
             
+            // Inject styles to prevent conflicts with other userscripts
+            injectGlobalStyles();
+            
             setTimeout(addAniPetIconToRows, 100);
         observeAndAddButtons();
         
@@ -377,6 +380,43 @@
             console.error('Error in init:', error);
             errorCount++;
         }
+    }
+
+    function injectGlobalStyles() {
+        if (document.getElementById('tampermonkey-styles')) return;
+        const css = `
+        /* Disable pointer events on parent anchor tags containing our button */
+        a:has(.anipet-alternatives-btn) {
+            pointer-events: none !important;
+        }
+        
+        /* Re-enable pointer events specifically for our button */
+        a:has(.anipet-alternatives-btn) .anipet-alternatives-btn {
+            pointer-events: auto !important;
+        }
+        
+        /* Alternative approach for browsers that don't support :has() */
+        .anipet-alternatives-btn {
+            position: relative;
+            z-index: 1000;
+        }
+        
+        /* Ensure our button is clickable even when wrapped in anchor */
+        .anipet-alternatives-btn,
+        .anipet-alternatives-btn * {
+            pointer-events: auto !important;
+        }
+        
+        /* Disable any parent anchor's click behavior around our button */
+        .anipet-alternatives-btn {
+            isolation: isolate;
+        }
+        `;
+        
+        const style = document.createElement('style');
+        style.id = 'anipet-button-styles';
+        style.textContent = css;
+        document.head.appendChild(style);
     }
 
     if (document.readyState === 'loading') {
