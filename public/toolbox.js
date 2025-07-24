@@ -1,9 +1,11 @@
 // ==UserScript==
 // @name         Lionwheel - Anipet Toolbox
 // @namespace    anipet-toolbox-merged
-// @version      13.3.5
+// @version      13.3.6
 // @description  AIO Script: Image Finder, Barcode Replacer, Previews, Responsive Views & more, all controlled from the Tampermonkey menu.
 // @match        *://*.lionwheel.com/*
+// @updateURL    https://anipetapp.netlify.app/toolbox.js
+// @downloadURL  https://anipetapp.netlify.app/toolbox.js
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
 // @grant        GM_setValue
@@ -75,7 +77,7 @@
 
     function registerMenuCommands() {
         const options = {
-            showImages: '��️ הצג תמונות וקישורים',
+            showImages: 'הצג תמונות וקישורים',
             replaceBarcodes: '📊 החלף מק"ט בברקוד',
             enablePreview: '👁️ אפשר תצוגה מקדימה מהירה',
             hideColumns: '🙈 הסתר עמודות מיותרות',
@@ -494,7 +496,27 @@ function showGalleryOverlay(galleryItems, startIndex) {
         const items = []; const uniqueSkus = new Set();
         searchScope.querySelectorAll('.table-responsive > .table tr, .modal-body .table tr, .nested-fields.order-item-row, td.pick-order-item-row').forEach(row => {
             let name, sku;
-            const nameEl = row.querySelector('td:nth-child(3), input.order-item-name, span.text-dark-75');
+            
+            // Find cells by header content instead of hardcoded positions
+            const table = row.closest('table');
+            let nameEl = null;
+            
+            if (table) {
+                const thead = table.querySelector('thead tr');
+                if (thead) {
+                    const headers = Array.from(thead.querySelectorAll('th')).map(th => th.textContent.trim());
+                    const nameIndex = headers.findIndex(header => header === 'שם');
+                    if (nameIndex !== -1) {
+                        nameEl = row.cells[nameIndex];
+                    }
+                }
+            }
+            
+            // Fallback to original selectors if header method didn't work
+            if (!nameEl) {
+                nameEl = row.querySelector('td:nth-child(4), input.order-item-name, span.text-dark-75');
+            }
+            
             const skuEl = row.querySelector('td.text-nowrap, input.order-item-sku, span.text-muted');
             if (!nameEl || !skuEl) return;
             name = (nameEl.value || nameEl.textContent).trim();
@@ -510,7 +532,7 @@ function showGalleryOverlay(galleryItems, startIndex) {
   thumbnailUrl: match.image,
   productName: name,
   sku: sku,
-  quantity: row.querySelector('td:nth-child(4)')?.textContent.trim() || '' // Or adjust the index based on column position
+  quantity: row.querySelector('td:nth-child(5)')?.textContent.trim() || '' // Updated to 5th column for quantity
 });
 
                 uniqueSkus.add(normalizedSku);
@@ -526,11 +548,24 @@ function showGalleryOverlay(galleryItems, startIndex) {
         const productTable = findProductTableInScope(scope);
         if (productTable) {
             productTable.querySelectorAll('tbody tr:not([data-image-processed])').forEach(row => {
-                // Correct nth-child for the product items table (`table-hover` usually)
-                // Structure: [Empty (1)], [SKU (2)], [Name (3)], ...
-                // This section is for the table that has product images, typically on tasks/*.
-                const nameCell = row.querySelector('td:nth-child(3)'); // Name is the 3rd TD position
-                const skuCell = row.querySelector('td:nth-child(2)'); // SKU is the 2nd TD position
+                // Find cells by header content instead of hardcoded positions
+                const thead = productTable.querySelector('thead tr');
+                let nameCell = null;
+                let skuCell = null;
+                
+                if (thead) {
+                    const headers = Array.from(thead.querySelectorAll('th')).map(th => th.textContent.trim());
+                    const nameIndex = headers.findIndex(header => header === 'שם');
+                    const skuIndex = headers.findIndex(header => header === 'מק״ט');
+                    
+                    if (nameIndex !== -1) nameCell = row.cells[nameIndex];
+                    if (skuIndex !== -1) skuCell = row.cells[skuIndex];
+                }
+                
+                // Fallback to hardcoded positions if header method didn't work
+                if (!nameCell) nameCell = row.querySelector('td:nth-child(4)');
+                if (!skuCell) skuCell = row.querySelector('td:nth-child(2)');
+                
                 if(!nameCell || !skuCell) return;
                 const targetCell = row.cells[0]; // Image always goes into the first TD
                 const name = nameCell.textContent.trim(), sku = (skuCell.dataset.originalSku || skuCell.textContent || '').trim();
