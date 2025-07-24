@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LionWheel to Anipet Alternatives
 // @namespace    http://tampermonkey.net/
-// @version      2.5
+// @version      2.6
 // @description  Add Anipet pixel icon button to LionWheel products (barcode search) - new column after barcode
 // @author       Adam Lee
 // @match        https://members.lionwheel.com/*
@@ -125,37 +125,24 @@
                 }
             };
             
-            button.onclick = function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!barcode) return;
+            // Create button with click handler
+            button.onclick = function(event) {
+                // Prevent event from bubbling up to parent elements
+                event.stopPropagation();
+                event.preventDefault();
                 
-                try {
-                    const searchUrl = `${ANIPET_APP_URL}?barcode=${encodeURIComponent(barcode)}`;
-            window.open(searchUrl, '_blank');
+                // Use barcode for more accurate search results
+                const searchTerm = barcode || productName;
+                const searchUrl = `${ANIPET_APP_URL}?barcode=${encodeURIComponent(searchTerm)}`;
+                
+                // Open in new tab
+                window.open(searchUrl, '_blank', 'noopener,noreferrer');
+                
+                // Prevent any default behavior
+                return false;
+            };
             
-                    // Visual feedback
-                    button.disabled = true;
-                    button.style.transform = 'scale(0.95)';
-                    const svg = button.querySelector('svg');
-                    if (svg) {
-                        svg.style.filter = 'grayscale(1) brightness(1.5)';
-                    }
-            
-            setTimeout(() => {
-                        button.disabled = false;
-                        button.style.transform = 'scale(1)';
-                        if (svg) {
-                            svg.style.filter = '';
-                        }
-                    }, 1200);
-                } catch (error) {
-                    console.error('Error opening Anipet search:', error);
-                    button.disabled = false;
-                }
-        };
-        
-        return button;
+            return button;
         } catch (error) {
             console.error('Error creating button:', error);
             errorCount++;
