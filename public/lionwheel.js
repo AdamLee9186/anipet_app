@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LionWheel to Anipet Alternatives
 // @namespace    http://tampermonkey.net/
-// @version      2.9
+// @version      3.0
 // @description  Add Anipet pixel icon button to LionWheel products (barcode search) - new column after barcode
 // @author       Adam Lee
 // @match        https://members.lionwheel.com/*
@@ -183,6 +183,54 @@
         return hasBarcodeHeader && hasNameHeader && !hasMessageHeaders;
     }
 
+    function findCellsByHeader(row) {
+        try {
+            const table = row.closest('table');
+            const thead = table.querySelector('thead tr');
+            
+            if (!thead) {
+                // Fallback to hardcoded positions if no header
+                return {
+                    nameCell: row.querySelector('td:nth-child(4)'),
+                    barcodeCell: row.querySelector('td:nth-child(2)')
+                };
+            }
+            
+            const headers = Array.from(thead.querySelectorAll('th')).map(th => th.textContent.trim());
+            
+            // Find name and barcode columns by header content
+            const nameIndex = headers.findIndex(header => header === 'שם');
+            const barcodeIndex = headers.findIndex(header => header === 'מק״ט');
+            
+            const nameCell = nameIndex !== -1 ? row.cells[nameIndex] : null;
+            const barcodeCell = barcodeIndex !== -1 ? row.cells[barcodeIndex] : null;
+            
+            // If we couldn't find by headers, try fallback selectors
+            if (!nameCell) {
+                const fallbackNameCell = row.querySelector('td:has(.order-item-name), td:has(.text-dark-75), td:has(a[href*="/products/"])');
+                if (fallbackNameCell) {
+                    return { nameCell: fallbackNameCell, barcodeCell };
+                }
+            }
+            
+            if (!barcodeCell) {
+                const fallbackBarcodeCell = row.querySelector('td.text-nowrap, td:has(span.text-muted)');
+                if (fallbackBarcodeCell) {
+                    return { nameCell, barcodeCell: fallbackBarcodeCell };
+                }
+            }
+            
+            return { nameCell, barcodeCell };
+        } catch (error) {
+            console.error('Error finding cells by header:', error);
+            // Ultimate fallback
+            return {
+                nameCell: row.querySelector('td:nth-child(4)'),
+                barcodeCell: row.querySelector('td:nth-child(2)')
+            };
+        }
+    }
+
     function addAniPetIconToRows() {
         try {
             // Check error limit
@@ -250,8 +298,7 @@
                                 return;
                             }
                             
-                            const nameCell = row.querySelector('td:nth-child(4)');
-                            const barcodeCell = row.querySelector('td:nth-child(2)');
+                            const { nameCell, barcodeCell } = findCellsByHeader(row);
                             
                             if (!nameCell || !barcodeCell) {
                                 return;
