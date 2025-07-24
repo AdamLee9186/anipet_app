@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lionwheel - Anipet Toolbox
 // @namespace    anipet-toolbox-merged
-// @version      13.3.4
+// @version      13.3.5
 // @description  AIO Script: Image Finder, Barcode Replacer, Previews, Responsive Views & more, all controlled from the Tampermonkey menu.
 // @match        *://*.lionwheel.com/*
 // @grant        GM_xmlhttpRequest
@@ -75,7 +75,7 @@
 
     function registerMenuCommands() {
         const options = {
-            showImages: '🖼️ הצג תמונות וקישורים',
+            showImages: '��️ הצג תמונות וקישורים',
             replaceBarcodes: '📊 החלף מק"ט בברקוד',
             enablePreview: '👁️ אפשר תצוגה מקדימה מהירה',
             hideColumns: '🙈 הסתר עמודות מיותרות',
@@ -541,8 +541,20 @@ function showGalleryOverlay(galleryItems, startIndex) {
                         targetCell.append(createImageElement(match, name, sku, { maxHeight: '80px', maxWidth: '80px' }));
                     }
                     if (match.link && !nameCell.querySelector('a')) {
-                        const link = document.createElement('a'); link.href = match.link; link.target = '_blank'; link.rel = 'noopener noreferrer';
-                        link.innerHTML = nameCell.innerHTML; nameCell.innerHTML = ''; nameCell.appendChild(link);
+                        // Check if there's an Anipet button in this cell or nearby
+                        const hasAnipetButton = nameCell.querySelector('.anipet-alternatives-btn') || 
+                                               nameCell.closest('tr').querySelector('.anipet-alternatives-btn');
+                        
+                        // Only create link if there's no Anipet button
+                        if (!hasAnipetButton) {
+                            const link = document.createElement('a'); 
+                            link.href = match.link; 
+                            link.target = '_blank'; 
+                            link.rel = 'noopener noreferrer';
+                            link.innerHTML = nameCell.innerHTML; 
+                            nameCell.innerHTML = ''; 
+                            nameCell.appendChild(link);
+                        }
                     }
                 }
                 row.setAttribute('data-image-processed', 'true');
