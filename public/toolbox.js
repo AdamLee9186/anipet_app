@@ -49,7 +49,15 @@
     const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 
     // ---< Global State >---
-    let settings = {};
+    let settings = {
+        showImages: true,
+        replaceBarcodes: true,
+        enablePreview: true,
+        hideColumns: true,
+        enableResponsive: true,
+        addWhatsApp: true,
+        highlightMerlog: true,
+    };
     let productDataCache = null; // For Image Finder
     let itemCodeToBarcodeMap = null; // For Barcode Replacer
     let descriptionToBarcodeMap = null; // For Barcode Replacer
@@ -79,7 +87,10 @@
     // ---< Cache Compression Functions >---
     function compressCache(data) {
         try {
-            return btoa(JSON.stringify(data));
+            // Use a more robust encoding method
+            const jsonString = JSON.stringify(data);
+            // Use encodeURIComponent to handle special characters
+            return encodeURIComponent(jsonString);
         } catch (error) {
             console.error(`[${SCRIPT_NAME}] Error compressing cache:`, error);
             return null;
@@ -88,7 +99,10 @@
 
     function decompressCache(compressed) {
         try {
-            return JSON.parse(atob(compressed));
+            if (!compressed) return null;
+            // Decode the URI component first
+            const decoded = decodeURIComponent(compressed);
+            return JSON.parse(decoded);
         } catch (error) {
             console.error(`[${SCRIPT_NAME}] Error decompressing cache:`, error);
             return null;
@@ -107,72 +121,94 @@
     };
 
     async function loadSettings() {
-        const savedSettings = await GM_getValue(SETTINGS_KEY, {});
-        settings = { ...defaultSettings, ...savedSettings };
-        updateBodyClasses();
+        try {
+            const savedSettings = await GM_getValue(SETTINGS_KEY, {});
+            settings = { ...defaultSettings, ...savedSettings };
+            updateBodyClasses();
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error loading settings:`, error);
+            // Keep default settings if loading fails
+            settings = { ...defaultSettings };
+        }
     }
 
     function updateBodyClasses() {
-        if(settings.enableResponsive) document.body.classList.add('tampermonkey-responsive-enabled');
-        if(settings.hideColumns) document.body.classList.add('tampermonkey-hide-columns-enabled');
+        if(settings && settings.enableResponsive) document.body.classList.add('tampermonkey-responsive-enabled');
+        if(settings && settings.hideColumns) document.body.classList.add('tampermonkey-hide-columns-enabled');
     }
 
     function registerMenuCommands() {
-        const options = {
-            showImages: '🖼️ הצג תמונות וקישורים',
-            replaceBarcodes: '📊 החלף מק"ט בברקוד',
-            enablePreview: '👁️ אפשר תצוגה מקדימה מהירה',
-            hideColumns: '🙈 הסתר עמודות מיותרות',
-            enableResponsive: '📱 אפשר תצוגה רספונסיבית למובייל',
-            addWhatsApp: '💬 הוסף כפתורי WhatsApp',
-            highlightMerlog: '🔴 הדגש שורות מרלוג'
-        };
+        try {
+            const options = {
+                showImages: '🖼️ הצג תמונות וקישורים',
+                replaceBarcodes: '📊 החלף מק"ט בברקוד',
+                enablePreview: '👁️ אפשר תצוגה מקדימה מהירה',
+                hideColumns: '🙈 הסתר עמודות מיותרות',
+                enableResponsive: '📱 אפשר תצוגה רספונסיבית למובייל',
+                addWhatsApp: '💬 הוסף כפתורי WhatsApp',
+                highlightMerlog: '🔴 הדגש שורות מרלוג'
+            };
 
             function createMenuCommandFunc(k) {
-            return async () => {
-            const newSettings = { ...settings, [k]: !settings[k] };
-            await GM_setValue(SETTINGS_KEY, newSettings);
-            location.reload();
-            };
+                return async () => {
+                    try {
+                        const newSettings = { ...settings, [k]: !settings[k] };
+                        await GM_setValue(SETTINGS_KEY, newSettings);
+                        location.reload();
+                    } catch (error) {
+                        console.error(`[${SCRIPT_NAME}] Error updating setting ${k}:`, error);
+                    }
+                };
             }
 
-for (const [key, label] of Object.entries(options)) {
-    const statusIcon = settings[key] ? '✅' : '❌';
-    GM_registerMenuCommand(`${statusIcon} ${label}`, createMenuCommandFunc(key));
-}
+            for (const [key, label] of Object.entries(options)) {
+                const statusIcon = (settings && settings[key]) ? '✅' : '❌';
+                GM_registerMenuCommand(`${statusIcon} ${label}`, createMenuCommandFunc(key));
+            }
 
-
-        GM_registerMenuCommand('🔄 רענן קטלוגים', () => {
-            GM_deleteValue(PRODUCT_DATA_CACHE_KEY);
-            GM_deleteValue(IMAGE_CACHE_TIMESTAMP_KEY);
-            GM_deleteValue(BARCODE_DATA_CACHE_KEY);
-            GM_deleteValue(BARCODE_CACHE_TIMESTAMP_KEY);
-            alert('קטלוגים נמחקו מהזיכרון. רענן את הדף כדי לטעון מחדש.');
-        });
+            GM_registerMenuCommand('🔄 רענן קטלוגים', () => {
+                try {
+                    GM_deleteValue(PRODUCT_DATA_CACHE_KEY);
+                    GM_deleteValue(IMAGE_CACHE_TIMESTAMP_KEY);
+                    GM_deleteValue(BARCODE_DATA_CACHE_KEY);
+                    GM_deleteValue(BARCODE_CACHE_TIMESTAMP_KEY);
+                    alert('קטלוגים נמחקו מהזיכרון. רענן את הדף כדי לטעון מחדש.');
+                } catch (error) {
+                    console.error(`[${SCRIPT_NAME}] Error clearing cache:`, error);
+                }
+            });
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error registering menu commands:`, error);
+        }
     }
 
 
     // ---< Data Loading Module >---
 
     async function getProductData(callback) {
-        const cachedData = await GM_getValue(PRODUCT_DATA_CACHE_KEY, null);
-        const cachedTimestamp = await GM_getValue(IMAGE_CACHE_TIMESTAMP_KEY, 0);
-        if (cachedData && (Date.now() - cachedTimestamp < CACHE_DURATION_MS)) {
-            // Try to decompress cached data
-            const decompressed = decompressCache(cachedData);
-            if (decompressed) {
-                productDataCache = decompressed;
-                if (callback) callback();
-                return;
-            }
-        }
+        // Prevent multiple simultaneous calls
+        if (window.productDataLoading) return;
+        window.productDataLoading = true;
+
         try {
+            const cachedData = await GM_getValue(PRODUCT_DATA_CACHE_KEY, null);
+            const cachedTimestamp = await GM_getValue(IMAGE_CACHE_TIMESTAMP_KEY, 0);
+            if (cachedData && (Date.now() - cachedTimestamp < CACHE_DURATION_MS)) {
+                // Try to decompress cached data
+                const decompressed = decompressCache(cachedData);
+                if (decompressed) {
+                    productDataCache = decompressed;
+                    if (callback) callback();
+                    return;
+                }
+            }
+
             updateStatus('טוען קטלוג מאסטר...', 'orange');
             const response = await new Promise((resolve, reject) => {
                 GM_xmlhttpRequest({ method: "GET", url: IMAGE_FINDER_CSV_URL, onload: resolve, onerror: reject });
             });
             productDataCache = processImageCsvText(response.responseText);
-            
+
             // Compress data before saving
             const compressed = compressCache(productDataCache);
             if (compressed) {
@@ -188,143 +224,205 @@ for (const [key, label] of Object.entries(options)) {
             productDataCache = [];
             updateStatus('שגיאה בטעינת קטלוג מאסטר.', 'red');
         } finally {
+            window.productDataLoading = false;
             if (callback) callback();
         }
     }
 
     function processImageCsvText(text) {
-        const lines = text.trim().split("\n"); if (lines.length <= 1) return [];
-        const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
-        const csvSkuIndex = headers.indexOf("skus");
-        const csvImageIndex = headers.indexOf("image url");
-        const csvUrlIndex = headers.indexOf("product url");
-        const csvProductNameIndex = headers.indexOf("product name");
-        if (csvSkuIndex === -1 || csvImageIndex === -1) return [];
-        return lines.slice(1).map(line => {
-            const parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-            const skusString = (parts[csvSkuIndex] || "").trim().replace(/^"|"$/g, '');
-            return {
-                skus: skusString ? skusString.split(',').map(s => normalizeSku(s.trim())).filter(Boolean) : [],
-                image: (parts[csvImageIndex] || "").trim().replace(/^"|"$/g, ''),
-                link: csvUrlIndex !== -1 ? (parts[csvUrlIndex] || "").trim().replace(/^"|"$/g, '') : '',
-                productName: csvProductNameIndex !== -1 ? (parts[csvProductNameIndex] || "").trim().replace(/^"|"$/g, '') : ''
-            };
-        }).filter(p => p.skus.length > 0 && p.image);
+        try {
+            if (!text) return [];
+
+            const lines = text.trim().split("\n"); if (lines.length <= 1) return [];
+            const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+            const csvSkuIndex = headers.indexOf("skus");
+            const csvImageIndex = headers.indexOf("image url");
+            const csvUrlIndex = headers.indexOf("product url");
+            const csvProductNameIndex = headers.indexOf("product name");
+            if (csvSkuIndex === -1 || csvImageIndex === -1) return [];
+            return lines.slice(1).map(line => {
+                const parts = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+                const skusString = (parts[csvSkuIndex] || "").trim().replace(/^"|"$/g, '');
+                return {
+                    skus: skusString ? skusString.split(',').map(s => normalizeSku(s.trim())).filter(Boolean) : [],
+                    image: (parts[csvImageIndex] || "").trim().replace(/^"|"$/g, ''),
+                    link: csvUrlIndex !== -1 ? (parts[csvUrlIndex] || "").trim().replace(/^"|"$/g, '') : '',
+                    productName: csvProductNameIndex !== -1 ? (parts[csvProductNameIndex] || "").trim().replace(/^"|"$/g, '') : ''
+                };
+            }).filter(p => p.skus.length > 0 && p.image);
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error processing image CSV text:`, error);
+            return [];
+        }
     }
 
     async function loadBarcodeCsv(callback) {
-        const cachedData = await GM_getValue(BARCODE_DATA_CACHE_KEY, null);
-        const cachedTimestamp = await GM_getValue(BARCODE_CACHE_TIMESTAMP_KEY, 0);
-        if (cachedData && (Date.now() - cachedTimestamp < CACHE_DURATION_MS)) {
-            // Try to decompress cached data
-            const decompressed = decompressCache(cachedData);
-            if (decompressed) {
-                processBarcodeData(decompressed);
-                if(callback) callback();
-                return;
-            }
-        }
-        updateStatus('טוען קטלוג ברקודים...', 'orange');
-        GM_xmlhttpRequest({
-            method: "GET", url: BARCODE_REPLACER_CSV_URL,
-            onload: async (response) => {
-                if (response.status >= 200 && response.status < 300) {
-                    const data = parseBarcodeCsv(response.responseText);
-                    if (data) {
-                        // Compress data before saving
-                        const compressed = compressCache(data);
-                        if (compressed) {
-                            await GM_setValue(BARCODE_DATA_CACHE_KEY, compressed);
-                        } else {
-                            // Fallback to uncompressed if compression fails
-                            await GM_setValue(BARCODE_DATA_CACHE_KEY, data);
-                        }
-                        await GM_setValue(BARCODE_CACHE_TIMESTAMP_KEY, Date.now());
-                        processBarcodeData(data);
-                    }
-                } else {
-                    updateStatus(`שגיאה בטעינת CSV ברקודים: ${response.statusText}`, 'red');
+        // Prevent multiple simultaneous calls
+        if (window.barcodeDataLoading) return;
+        window.barcodeDataLoading = true;
+
+        try {
+            const cachedData = await GM_getValue(BARCODE_DATA_CACHE_KEY, null);
+            const cachedTimestamp = await GM_getValue(BARCODE_CACHE_TIMESTAMP_KEY, 0);
+            if (cachedData && (Date.now() - cachedTimestamp < CACHE_DURATION_MS)) {
+                // Try to decompress cached data
+                const decompressed = decompressCache(cachedData);
+                if (decompressed) {
+                    processBarcodeData(decompressed);
+                    if(callback) callback();
+                    return;
                 }
-                if (callback) callback();
-            },
-            onerror: () => {
-                updateStatus('שגיאת רשת בטעינת CSV ברקודים.', 'red');
-                if (callback) callback();
             }
-        });
+
+            updateStatus('טוען קטלוג ברקודים...', 'orange');
+            GM_xmlhttpRequest({
+                method: "GET", url: BARCODE_REPLACER_CSV_URL,
+                onload: async (response) => {
+                    try {
+                        if (response.status >= 200 && response.status < 300) {
+                            const data = parseBarcodeCsv(response.responseText);
+                            if (data) {
+                                // Compress data before saving
+                                const compressed = compressCache(data);
+                                if (compressed) {
+                                    await GM_setValue(BARCODE_DATA_CACHE_KEY, compressed);
+                                } else {
+                                    // Fallback to uncompressed if compression fails
+                                    await GM_setValue(BARCODE_DATA_CACHE_KEY, data);
+                                }
+                                await GM_setValue(BARCODE_CACHE_TIMESTAMP_KEY, Date.now());
+                                processBarcodeData(data);
+                            }
+                        } else {
+                            updateStatus(`שגיאה בטעינת CSV ברקודים: ${response.statusText}`, 'red');
+                        }
+                    } catch (error) {
+                        console.error(`[${SCRIPT_NAME}] Error processing barcode CSV:`, error);
+                        updateStatus('שגיאה בעיבוד קובץ הברקודים.', 'red');
+                    } finally {
+                        window.barcodeDataLoading = false;
+                        if (callback) callback();
+                    }
+                },
+                onerror: () => {
+                    window.barcodeDataLoading = false;
+                    updateStatus('שגיאת רשת בטעינת CSV ברקודים.', 'red');
+                    if (callback) callback();
+                }
+            });
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error loading barcode CSV:`, error);
+            window.barcodeDataLoading = false;
+            updateStatus('שגיאה בטעינת קובץ הברקודים.', 'red');
+            if (callback) callback();
+        }
     }
 
     function processBarcodeData(data) {
-        if (!data) return;
-        itemCodeToBarcodeMap = new Map(data.itemCodeToBarcodeMap);
-        descriptionToBarcodeMap = new Map(data.descriptionToBarcodeMap);
-        updateStatus(`קטלוג ברקודים נטען: ${descriptionToBarcodeMap.size} פריטים.`, 'green', true);
+        try {
+            if (!data) return;
+            itemCodeToBarcodeMap = new Map(data.itemCodeToBarcodeMap);
+            descriptionToBarcodeMap = new Map(data.descriptionToBarcodeMap);
+            updateStatus(`קטלוג ברקודים נטען: ${descriptionToBarcodeMap.size} פריטים.`, 'green', true);
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error processing barcode data:`, error);
+        }
     }
 
     function parseBarcodeCsv(csvString) {
-        let localItemCodeToBarcodeMap = new Map();
-        let localDescriptionToBarcodeMap = new Map();
-        let success = false;
-        Papa.parse(csvString, {
-            header: true, skipEmptyLines: true, trimHeaders: true,
-            complete: (results) => {
-                const headers = results.meta.fields || Object.keys(results.data[0]);
-                const itemCodeKey = headers.find(h => h.trim() === 'קוד פריט');
-                const descKey = headers.find(h => h.trim() === 'תאור פריט');
-                const barcodeKey = headers.find(h => h.trim() === 'ברקוד');
-                if (!descKey || !barcodeKey || !itemCodeKey) {
-                    updateStatus(`שגיאה: עמודות חסרות בקובץ הברקודים.`, 'red'); return;
-                }
-                results.data.forEach(row => {
-                    const itemCode = row[itemCodeKey]?.trim();
-                    const desc = row[descKey]?.trim();
-                    const barcode = row[barcodeKey]?.trim();
-                    if (itemCode) localItemCodeToBarcodeMap.set(itemCode, barcode || null);
-                    if (desc) localDescriptionToBarcodeMap.set(desc, barcode || null);
-                });
-                success = true;
-            },
-            error: (error) => updateStatus(`שגיאה בפענוח קובץ הברקודים: ${error.message}`, 'red')
-        });
-        return success ? { itemCodeToBarcodeMap: Array.from(localItemCodeToBarcodeMap.entries()), descriptionToBarcodeMap: Array.from(localDescriptionToBarcodeMap.entries()) } : null;
+        try {
+            if (!csvString) return null;
+
+            let localItemCodeToBarcodeMap = new Map();
+            let localDescriptionToBarcodeMap = new Map();
+            let success = false;
+            Papa.parse(csvString, {
+                header: true, skipEmptyLines: true, trimHeaders: true,
+                complete: (results) => {
+                    try {
+                        const headers = results.meta.fields || Object.keys(results.data[0]);
+                        const itemCodeKey = headers.find(h => h.trim() === 'קוד פריט');
+                        const descKey = headers.find(h => h.trim() === 'תאור פריט');
+                        const barcodeKey = headers.find(h => h.trim() === 'ברקוד');
+                        if (!descKey || !barcodeKey || !itemCodeKey) {
+                            updateStatus(`שגיאה: עמודות חסרות בקובץ הברקודים.`, 'red'); return;
+                        }
+                        results.data.forEach(row => {
+                            const itemCode = row[itemCodeKey]?.trim();
+                            const desc = row[descKey]?.trim();
+                            const barcode = row[barcodeKey]?.trim();
+                            if (itemCode) localItemCodeToBarcodeMap.set(itemCode, barcode || null);
+                            if (desc) localDescriptionToBarcodeMap.set(desc, barcode || null);
+                        });
+                        success = true;
+                    } catch (error) {
+                        console.error(`[${SCRIPT_NAME}] Error in Papa.parse complete callback:`, error);
+                    }
+                },
+                error: (error) => updateStatus(`שגיאה בפענוח קובץ הברקודים: ${error.message}`, 'red')
+            });
+            return success ? { itemCodeToBarcodeMap: Array.from(localItemCodeToBarcodeMap.entries()), descriptionToBarcodeMap: Array.from(localDescriptionToBarcodeMap.entries()) } : null;
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error parsing barcode CSV:`, error);
+            return null;
+        }
     }
 
     // ---< Helper Functions >---
-    function normalizeSku(sku) { if (typeof sku !== 'string') return ''; return sku.replace(/\D/g, ''); }
+    function normalizeSku(sku) {
+        try {
+            if (typeof sku !== 'string') return '';
+            return sku.replace(/\D/g, '');
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error normalizing SKU:`, error);
+            return '';
+        }
+    }
 
     function findImageMatch(sku, productName) {
-        if (!productDataCache) return null;
-        if (sku && !String(sku).trim().startsWith('0')) {
-            const normalizedSku = normalizeSku(sku);
-            if (normalizedSku) {
-                const skuMatch = productDataCache.find(p => p.skus.includes(normalizedSku));
-                if (skuMatch) return skuMatch;
+        try {
+            if (!productDataCache) return null;
+            if (sku && !String(sku).trim().startsWith('0')) {
+                const normalizedSku = normalizeSku(sku);
+                if (normalizedSku) {
+                    const skuMatch = productDataCache.find(p => p.skus.includes(normalizedSku));
+                    if (skuMatch) return skuMatch;
+                }
             }
+            if (productName) {
+                const pageProductNameNormalized = productName.toLowerCase().trim();
+                const nameMatch = productDataCache.find(p => p.productName && p.productName.toLowerCase().trim() === pageProductNameNormalized);
+                if (nameMatch) return nameMatch;
+            }
+            return null;
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error finding image match:`, error);
+            return null;
         }
-        if (productName) {
-            const pageProductNameNormalized = productName.toLowerCase().trim();
-            const nameMatch = productDataCache.find(p => p.productName && p.productName.toLowerCase().trim() === pageProductNameNormalized);
-            if (nameMatch) return nameMatch;
-        }
-        return null;
     }
 
     function findBarcode(sku, name) {
-        if (!itemCodeToBarcodeMap || !descriptionToBarcodeMap) return null;
-        if (sku && itemCodeToBarcodeMap.has(sku)) {
-            const barcode = itemCodeToBarcodeMap.get(sku);
-            if (barcode) return barcode;
+        try {
+            if (!itemCodeToBarcodeMap || !descriptionToBarcodeMap) return null;
+            if (sku && itemCodeToBarcodeMap.has(sku)) {
+                const barcode = itemCodeToBarcodeMap.get(sku);
+                if (barcode) return barcode;
+            }
+            if (name && descriptionToBarcodeMap.has(name)) {
+                const barcode = descriptionToBarcodeMap.get(name);
+                if (barcode) return barcode;
+            }
+            return null;
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error finding barcode:`, error);
+            return null;
         }
-        if (name && descriptionToBarcodeMap.has(name)) {
-            const barcode = descriptionToBarcodeMap.get(name);
-            if (barcode) return barcode;
-        }
-        return null;
     }
 
     function getFullSizeImageUrl(thumbnailUrl) {
-        if (!thumbnailUrl || typeof thumbnailUrl !== 'string') return '';
         try {
+            if (!thumbnailUrl || typeof thumbnailUrl !== 'string') return '';
+
             if (thumbnailUrl.includes('cdn.modulus.co.il')) { return thumbnailUrl.split('?')[0]; }
             if (thumbnailUrl.includes('www.gag-lachayot.co.il')) { return thumbnailUrl.replace(/-\d+x\d+(\.[a-zA-Z0-9]+(?:[?#].*)?)$/, '$1').replace(/-\d+x\d+$/, ''); }
             if (thumbnailUrl.includes('www.all4pet.co.il')) { return thumbnailUrl.replace(/_small(\.[a-zA-Z0-9]+(?:[?#].*)?)$/, '$1').replace(/_small$/, ''); }
@@ -342,56 +440,74 @@ for (const [key, label] of Object.entries(options)) {
     }
 
     function findProductTableInScope(scope) {
-        const allTables = scope.querySelectorAll('table');
-        for (const table of allTables) {
-            const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
-            if (headers.includes('מק״ט') && headers.includes('שם')) return table;
+        try {
+            if (!scope) return null;
+
+            const allTables = scope.querySelectorAll('table');
+            for (const table of allTables) {
+                const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
+                if (headers.includes('מק״ט') && headers.includes('שם')) return table;
+            }
+            return null;
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error finding product table:`, error);
+            return null;
         }
-        return null;
     }
 
     // ---< UI & DOM Manipulation >---
 
     let scriptStatusElement = null;
     function createStatusNotifier() {
-        if (document.getElementById('scriptStatusNotifier')) return;
-        scriptStatusElement = document.createElement('div');
-        scriptStatusElement.id = 'scriptStatusNotifier';
-        document.body.appendChild(scriptStatusElement);
-        // Ensure it's hidden initially unless a message is set
-        scriptStatusElement.style.opacity = '0';
-        scriptStatusElement.style.transition = 'opacity 0.5s ease-in-out';
+        try {
+            if (document.getElementById('scriptStatusNotifier')) return;
+            scriptStatusElement = document.createElement('div');
+            scriptStatusElement.id = 'scriptStatusNotifier';
+            document.body.appendChild(scriptStatusElement);
+            // Ensure it's hidden initially unless a message is set
+            scriptStatusElement.style.opacity = '0';
+            scriptStatusElement.style.transition = 'opacity 0.5s ease-in-out';
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error creating status notifier:`, error);
+        }
     }
   function updateStatus(message, color = '#333', temporary = false) {
-  // רק הודעות אדומות (שגיאה) יעברו
-  if (color !== 'red') return;
+  try {
+    // רק הודעות אדומות (שגיאה) יעברו
+    if (color !== 'red') return;
 
-  // שאר הקוד שלך נשאר כמו שהוא:
-  if (!scriptStatusElement) createStatusNotifier();
-  scriptStatusElement.textContent = message;
-  scriptStatusElement.style.color = color;
-  scriptStatusElement.style.borderColor = color;
-  scriptStatusElement.style.opacity = '0.9';
-  if (temporary) setTimeout(() => { scriptStatusElement.style.opacity = '0' }, 4000);
-  console.log(`[${SCRIPT_NAME}] ${message}`);
+    // שאר הקוד שלך נשאר כמו שהוא:
+    if (!scriptStatusElement) createStatusNotifier();
+    if (!scriptStatusElement) return; // Double check
+
+    scriptStatusElement.textContent = message;
+    scriptStatusElement.style.color = color;
+    scriptStatusElement.style.borderColor = color;
+    scriptStatusElement.style.opacity = '0.9';
+    if (temporary) setTimeout(() => { scriptStatusElement.style.opacity = '0' }, 4000);
+    console.log(`[${SCRIPT_NAME}] ${message}`);
+  } catch (error) {
+    console.error(`[${SCRIPT_NAME}] Error updating status:`, error);
+  }
 }
 
 function showGalleryOverlay(galleryItems, startIndex) {
-    function handleSwipe() {
-        const diff = startX - endX;
-        const threshold = 50; // swipe sensitivity in px
+    try {
+        function handleSwipe() {
+            const diff = startX - endX;
+            const threshold = 50; // swipe sensitivity in px
 
-        if (Math.abs(diff) > threshold) {
-            if (diff > 0) {
-                navigate(-1); // swipe left → next
-            } else {
-                navigate(1); // swipe right → prev
+            if (Math.abs(diff) > threshold) {
+                if (diff > 0) {
+                    navigate(-1); // swipe left → next
+                } else {
+                    navigate(1); // swipe right → prev
+                }
             }
         }
-    }
 
-    if (!galleryItems || galleryItems.length === 0) return;
-    if (document.getElementById('tampermonkey-gallery-overlay')) document.getElementById('tampermonkey-gallery-overlay').remove();
+        if (!galleryItems || galleryItems.length === 0) return;
+        if (document.getElementById('tampermonkey-gallery-overlay')) document.getElementById('tampermonkey-gallery-overlay').remove();
 
     let currentIndex = startIndex;
     let startX = 0;
@@ -539,34 +655,47 @@ function showGalleryOverlay(galleryItems, startIndex) {
     setTimeout(() => {
         overlay.style.opacity = '1';
     }, 10);
+    } catch (error) {
+        console.error(`[${SCRIPT_NAME}] Error showing gallery overlay:`, error);
+    }
 }
 
     // ---< Injection & Cleanup Logic >---
 
     function createImageElement(match, nameText, skuText, styleObject) {
-        const img = document.createElement('img');
-        img.src = match.image; img.alt = `תמונה עבור ${nameText || 'מוצר'}`; img.className = 'tampermonkey-sku-image'; img.title = 'לחץ לפתיחת הגלריה';
-        Object.assign(img.style, { width: 'auto', objectFit: 'contain', borderRadius: '4px', cursor: 'pointer', ...styleObject });
-        img.onerror = function() { this.src = PLACEHOLDER_IMG_URL; this.onclick = null; };
-        img.onclick = (e) => {
-            e.stopPropagation();
-            const searchScope = e.target.closest('.modal, body');
-            const galleryItems = extractDataForGallery(searchScope);
-            const clickedIndex = galleryItems.findIndex(item => normalizeSku(item.sku) === normalizeSku(skuText));
-            showGalleryOverlay(galleryItems, Math.max(0, clickedIndex));
-        };
-        return img;
+        try {
+            if (!match || !match.image) return null;
+
+            const img = document.createElement('img');
+            img.src = match.image; img.alt = `תמונה עבור ${nameText || 'מוצר'}`; img.className = 'tampermonkey-sku-image'; img.title = 'לחץ לפתיחת הגלריה';
+            Object.assign(img.style, { width: 'auto', objectFit: 'contain', borderRadius: '4px', cursor: 'pointer', ...styleObject });
+            img.onerror = function() { this.src = PLACEHOLDER_IMG_URL; this.onclick = null; };
+            img.onclick = (e) => {
+                e.stopPropagation();
+                const searchScope = e.target.closest('.modal, body');
+                const galleryItems = extractDataForGallery(searchScope);
+                const clickedIndex = galleryItems.findIndex(item => normalizeSku(item.sku) === normalizeSku(skuText));
+                showGalleryOverlay(galleryItems, Math.max(0, clickedIndex));
+            };
+            return img;
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error creating image element:`, error);
+            return null;
+        }
     }
 
     function extractDataForGallery(searchScope) {
-        const items = []; const uniqueSkus = new Set();
-        searchScope.querySelectorAll('.table-responsive > .table tr, .modal-body .table tr, .nested-fields.order-item-row, td.pick-order-item-row').forEach(row => {
+        try {
+            if (!searchScope) return [];
+
+            const items = []; const uniqueSkus = new Set();
+            searchScope.querySelectorAll('.table-responsive > .table tr, .modal-body .table tr, .nested-fields.order-item-row, td.pick-order-item-row').forEach(row => {
             let name, sku;
-            
+
             // Find cells by header content instead of hardcoded positions
             const table = row.closest('table');
             let nameEl = null;
-            
+
             if (table) {
                 const thead = table.querySelector('thead tr');
                 if (thead) {
@@ -577,12 +706,12 @@ function showGalleryOverlay(galleryItems, startIndex) {
                     }
                 }
             }
-            
+
             // Fallback to original selectors if header method didn't work
             if (!nameEl) {
                 nameEl = row.querySelector('td:nth-child(4), input.order-item-name, span.text-dark-75');
             }
-            
+
             const skuEl = row.querySelector('td.text-nowrap, input.order-item-sku, span.text-muted');
             if (!nameEl || !skuEl) return;
             name = (nameEl.value || nameEl.textContent).trim();
@@ -605,12 +734,17 @@ function showGalleryOverlay(galleryItems, startIndex) {
             }
         });
         return items;
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error extracting gallery data:`, error);
+            return [];
+        }
     }
 
     // MODIFICATION START: Updated injectImagesAndLinks to accept a scope parameter
     function injectImagesAndLinks(scope = document) {
     // MODIFICATION END
-        if (!settings.showImages) return;
+        try {
+            if (!settings || !settings.showImages) return;
         const productTable = findProductTableInScope(scope);
         if (productTable) {
             productTable.querySelectorAll('tbody tr:not([data-image-processed])').forEach(row => {
@@ -618,20 +752,20 @@ function showGalleryOverlay(galleryItems, startIndex) {
                 const thead = productTable.querySelector('thead tr');
                 let nameCell = null;
                 let skuCell = null;
-                
+
                 if (thead) {
                     const headers = Array.from(thead.querySelectorAll('th')).map(th => th.textContent.trim());
                     const nameIndex = headers.findIndex(header => header === 'שם');
                     const skuIndex = headers.findIndex(header => header === 'מק״ט');
-                    
+
                     if (nameIndex !== -1) nameCell = row.cells[nameIndex];
                     if (skuIndex !== -1) skuCell = row.cells[skuIndex];
                 }
-                
+
                 // Fallback to hardcoded positions if header method didn't work
                 if (!nameCell) nameCell = row.querySelector('td:nth-child(4)');
                 if (!skuCell) skuCell = row.querySelector('td:nth-child(2)');
-                
+
                 if(!nameCell || !skuCell) return;
                 const targetCell = row.cells[0]; // Image always goes into the first TD
                 const name = nameCell.textContent.trim(), sku = (skuCell.dataset.originalSku || skuCell.textContent || '').trim();
@@ -643,17 +777,17 @@ function showGalleryOverlay(galleryItems, startIndex) {
                     }
                     if (match.link && !nameCell.querySelector('a')) {
                         // Check if there's an Anipet button in this cell or nearby
-                        const hasAnipetButton = nameCell.querySelector('.anipet-alternatives-btn') || 
+                        const hasAnipetButton = nameCell.querySelector('.anipet-alternatives-btn') ||
                                                nameCell.closest('tr').querySelector('.anipet-alternatives-btn');
-                        
+
                         // Only create link if there's no Anipet button
                         if (!hasAnipetButton) {
-                            const link = document.createElement('a'); 
-                            link.href = match.link; 
-                            link.target = '_blank'; 
+                            const link = document.createElement('a');
+                            link.href = match.link;
+                            link.target = '_blank';
                             link.rel = 'noopener noreferrer';
-                            link.innerHTML = nameCell.innerHTML; 
-                            nameCell.innerHTML = ''; 
+                            link.innerHTML = nameCell.innerHTML;
+                            nameCell.innerHTML = '';
                             nameCell.appendChild(link);
                         }
                     }
@@ -695,12 +829,16 @@ function showGalleryOverlay(galleryItems, startIndex) {
                 row.setAttribute('data-image-processed', 'true');
             });
         }
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error injecting images and links:`, error);
+        }
     }
 
     // MODIFICATION START: Updated replaceBarcodesInViews to accept a scope parameter
     function replaceBarcodesInViews(scope = document) {
     // MODIFICATION END
-        if (!settings.replaceBarcodes || !itemCodeToBarcodeMap) return;
+        try {
+            if (!settings || !settings.replaceBarcodes || !itemCodeToBarcodeMap) return;
         const contexts = [ '#taskOverview table', '#kt_content table', 'form[id^="edit_task_"]', '.modal-body:has(.pick-order-item-table)' ];
         // MODIFICATION: Changed document.querySelectorAll to scope.querySelectorAll
         scope.querySelectorAll(contexts.join(', ')).forEach(context => {
@@ -729,11 +867,15 @@ function showGalleryOverlay(galleryItems, startIndex) {
                 }
             });
         });
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error replacing barcodes in views:`, error);
+        }
     }
 
     // This is the correct and ONLY definition for injectPreviewFunctionality
     function injectPreviewFunctionality(mainTableBody) {
-        if (!settings.enablePreview || mainTableBody.hasAttribute('data-preview-injected')) return;
+        try {
+            if (!settings || !settings.enablePreview || mainTableBody.hasAttribute('data-preview-injected')) return;
         const headerRow = mainTableBody.closest('table').querySelector('thead tr');
         let previewHeaderCell = null;
 
@@ -902,27 +1044,47 @@ if (previewHeaderCell && !previewHeaderCell.querySelector('.preview-toggle-all-b
             row.setAttribute('data-preview-processed', 'true');
         });
         mainTableBody.setAttribute('data-preview-injected', 'true');
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error injecting preview functionality:`, error);
+        }
     }
     // MODIFICATION END: This is where the correct injectPreviewFunctionality function ends.
 
     function addResponsiveDataAttributes(table) {
-        if (!settings.enableResponsive || !table) return;
-        table.querySelectorAll('tbody td[data-label]').forEach(td => td.removeAttribute('data-label')); // Clear old labels
-        const headers = Array.from(table.querySelectorAll('thead th:not(.tm-hideable-column):not([style*="display: none"])'));
-        const headerTexts = headers.map(th => th.textContent.trim());
-        table.querySelectorAll('tbody tr').forEach(row => {
-            row.querySelectorAll('td:not(.tm-hideable-column):not([style*="display: none"])').forEach((cell, index) => {
-                if (headerTexts[index]) cell.setAttribute('data-label', headerTexts[index]);
+        try {
+            if (!settings || !settings.enableResponsive || !table) return;
+
+            // Clear old labels
+            table.querySelectorAll('tbody td[data-label]').forEach(td => td.removeAttribute('data-label'));
+
+            // קח את כל הכותרות כולל preview, ריקים ומוסתרים
+            const allHeaders = Array.from(table.querySelectorAll('thead th'));
+
+            table.querySelectorAll('tbody tr').forEach((row) => {
+                const allCells = Array.from(row.querySelectorAll('td'));
+                allCells.forEach((cell, i) => {
+                    const header = allHeaders[i];
+                    if (header) {
+                        const label = header.textContent.trim();
+                        if (label) {
+                            cell.setAttribute('data-label', label);
+                        }
+                    }
+                });
             });
-        });
-        table.setAttribute('data-responsive-labels-added', 'true');
+
+            table.setAttribute('data-responsive-labels-added', 'true');
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error adding responsive data attributes:`, error);
+        }
     }
 
     // MODIFICATION START: Updated tagColumnsForHiding to accept an optional scope
     function tagColumnsForHiding(scope = document) { // Default scope is document
     // MODIFICATION END
-        // Process main tables if the scope is the whole document or contains them
-        if (scope === document) { // Only process main tables if the overall document is the target
+        try {
+            // Process main tables if the scope is the whole document or contains them
+            if (scope === document) { // Only process main tables if the overall document is the target
             scope.querySelectorAll('#taskOverview table, #kt_content table').forEach(table => {
                 // MODIFICATION START: Ensure empty TH (th.noVis.pt-2) is handled
                 // We are NOT hiding it using tm-hideable-column anymore.
@@ -981,11 +1143,15 @@ if (previewHeaderCell && !previewHeaderCell.querySelector('.preview-toggle-all-b
             });
             // Do NOT set data-columns-tagged on the modal form itself, as we want this to re-run for new rows.
         }
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error tagging columns for hiding:`, error);
+        }
     }
     // MODIFICATION END
 
 function injectWhatsAppButtons() {
-    if (!settings.addWhatsApp) return;
+    try {
+        if (!settings || !settings.addWhatsApp) return;
     const createWhatsAppLink = (phone, firstName) => {
         const numberForLink = `972${phone.replace(/\D/g, '').substring(1)}`;
         let href = `https://wa.me/${numberForLink}`;
@@ -1041,13 +1207,17 @@ function injectWhatsAppButtons() {
             parent.replaceChild(fragment, textNode);
         }
     });
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error injecting WhatsApp buttons:`, error);
+        }
 }
 
 
 // ---< Global Styles >---
 
    function injectGlobalStyles() {
-    if (document.getElementById('tampermonkey-styles')) return;
+    try {
+        if (document.getElementById('tampermonkey-styles')) return;
     const css = `
 
     .whatsapp-injected, a.whatsapp-injected { display: inline-flex !important; align-items: center; white-space: nowrap; vertical-align: middle; }
@@ -1420,14 +1590,133 @@ td.copy-enabled.cell-copied {
 }
 
 .merlog-highlight:hover {
-    background-color: rgba(255, 0, 0, 0.15) !important;
+    background-color:  rgb(255, 230, 230) !important;
+}
+
+/* Override for table cells specifically */
+td.merlog-highlight {
+    background-color: rgb(255, 200, 200) !important;
+    border-radius: 4px;
+    padding: 4px 8px;
+    margin: 2px 0;
+}
+
+td.merlog-highlight:hover {
+    background-color: rgb(255, 180, 180) !important;
+}
+
+/* Exclude preview cells from merlog highlighting */
+td.preview-cell.merlog-highlight,
+.preview-cell.merlog-highlight {
+    background-color: inherit !important;
+    border-radius: inherit !important;
+    padding: inherit !important;
+    margin: inherit !important;
+}
+
+td.preview-cell.merlog-highlight:hover,
+.preview-cell.merlog-highlight:hover {
+    background-color: inherit !important;
+}
+
+/* Force preview cells to keep their original styling */
+.preview-cell {
+    background-color: inherit !important;
+    text-align: center !important;
+}
+
+/* Override any merlog highlighting on preview cells */
+tr.merlog-highlight .preview-cell,
+tr.merlog-highlight td.preview-cell,
+.preview-cell.merlog-highlight,
+td.preview-cell.merlog-highlight {
+    background-color: inherit !important;
+    border-radius: inherit !important;
+    padding: inherit !important;
+    margin: inherit !important;
+    box-shadow: none !important;
+}
+
+/* Force preview cells to always keep their original styling */
+.preview-cell,
+td.preview-cell {
+    background-color: transparent !important;
+    background: transparent !important;
+    text-align: center !important;
+}
+
+/* Override any hover effects on preview cells */
+.preview-cell:hover,
+td.preview-cell:hover {
+    background-color: transparent !important;
+    background: transparent !important;
+}
+
+/* Force preview cell buttons to keep their original styling */
+.preview-cell button,
+td.preview-cell button {
+    background-color: #f3f6f9 !important;
+    border-color: #e1e3ea !important;
+}
+
+.preview-cell button:hover,
+td.preview-cell button:hover {
+    background-color: #e1e3ea !important;
+    border-color: #b5b5c3 !important;
+}
+
+/* Merlog Table Cell Highlighting - Darker red for specific cells */
+#operator-store-visits-table td.merlog-highlight:not(.preview-cell),
+#tasks-table td.merlog-highlight:not(.preview-cell),
+table td.merlog-highlight:not(.preview-cell) {
+    background-color: rgb(255, 200, 200) !important;
+    border-radius: 4px;
+    padding: 4px 8px;
+    margin: 2px 0;
+}
+
+#operator-store-visits-table td.merlog-highlight:hover:not(.preview-cell),
+#tasks-table td.merlog-highlight:hover:not(.preview-cell),
+table td.merlog-highlight:hover:not(.preview-cell) {
+    background-color: rgb(255, 180, 180) !important;
+}
+
+/* Merlog Panel View Highlighting - Solid background */
+.offcanvas.merlog-highlight {
+    background-color: rgb(255, 230, 230) !important;
+    backdrop-filter: blur(0px) !important;
+}
+
+.offcanvas.merlog-highlight:hover {
+    background-color:  rgb(255, 230, 230)  !important;
+}
+
+/* Merlog Panel View Row Highlighting - Darker red for specific rows */
+.offcanvas .select2-selection--single.merlog-highlight,
+.offcanvas .col-xxl-5.col-6.merlog-highlight,
+.offcanvas .col-xxl-7.col-6.merlog-highlight {
+    background-color: rgb(255, 200, 200) !important;
+    border-radius: 4px;
+    padding: 4px 8px;
+    margin: 2px 0;
+}
+
+.offcanvas .select2-selection--single.merlog-highlight:hover,
+.offcanvas .col-xxl-5.col-6.merlog-highlight:hover,
+.offcanvas .col-xxl-7.col-6.merlog-highlight:hover {
+    background-color: rgb(255, 180, 180) !important;
 }
   `;
 
   GM_addStyle(css);
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error injecting global styles:`, error);
+        }
 }
 // ✅ OUTSIDE the previous function block — correctly placed
 function enableCopyStyling(el) {
+    if (!el || !el.classList || !el.hasAttribute) return;
+
     if (!el.classList.contains('copy-enabled')) {
         el.classList.add('copy-enabled');
     }
@@ -1437,21 +1726,237 @@ function enableCopyStyling(el) {
 }
 
 function prepareCopyElements() {
-    document.querySelectorAll(`
-        tr[id^="visit-row-"] td.text-nowrap,
-        tr[id^="visit-row-"] td,
-        strong.barcode-highlight,
-        strong.barcode-highlight-gallery,
-        .font-weight-bold,
-        .gallery-product-name
-    `).forEach(enableCopyStyling);
+    try {
+        document.querySelectorAll(`
+            tr[id^="visit-row-"] td.text-nowrap,
+            tr[id^="visit-row-"] td,
+            strong.barcode-highlight,
+            strong.barcode-highlight-gallery,
+            .font-weight-bold,
+            .gallery-product-name
+        `).forEach(enableCopyStyling);
+    } catch (error) {
+        console.error(`[${SCRIPT_NAME}] Error preparing copy elements:`, error);
+    }
 }
 
 
 
 
+    // ---< Merlog Row Highlighting >---
+    function highlightMerlogRows() {
+        try {
+            // Check if settings exists and highlightMerlog is enabled
+            if (!settings || !settings.highlightMerlog) return;
+
+            // Try to find the correct table
+            let table = document.querySelector('#operator-store-visits-table');
+            if (!table) {
+                table = document.querySelector('#tasks-table');
+            }
+            if (!table) {
+                // Try to find any table that might contain the data
+                table = document.querySelector('table');
+            }
+            if (!table) return;
+
+
+
+            const thead = table.querySelector('thead tr');
+            if (!thead) return;
+
+            let highlightedCount = 0;
+            let totalRows = 0;
+
+            // Process each row
+            table.querySelectorAll('tbody tr').forEach((row, rowIndex) => {
+                totalRows++;
+                let shouldHighlight = false;
+
+                
+
+                // Check driver column - look for "שיגור למרלוג"
+                Array.from(row.cells).forEach(cell => {
+                    // Skip preview cells
+                    if (cell.classList.contains('preview-cell')) return;
+                    
+                    const dataLabel = cell.getAttribute('data-label');
+                    if (dataLabel === 'נהג') {
+                        // Look for the actual displayed text in the select2 element
+                        const select2Rendered = cell.querySelector('.select2-selection__rendered');
+                        if (select2Rendered) {
+                                                const driverText = select2Rendered.textContent.trim();
+                    // Look for specific patterns that indicate Merlog delivery
+                            if (driverText.includes('שיגור למרלוג')) {
+                                shouldHighlight = true;
+                                cell.classList.add('merlog-highlight');
+                                cell.style.backgroundColor = 'rgb(255, 200, 200)';
+                                cell.style.borderRadius = '4px';
+                                cell.style.padding = '4px 8px';
+                            } else {
+                                cell.classList.remove('merlog-highlight');
+                                cell.style.backgroundColor = '';
+                                cell.style.borderRadius = '';
+                                cell.style.padding = '';
+                            }
+                        }
+                    }
+                });
+
+                // Check area column - look for specific Merlog area patterns
+                Array.from(row.cells).forEach(cell => {
+                    // Skip preview cells
+                    if (cell.classList.contains('preview-cell')) return;
+                    
+                    const dataLabel = cell.getAttribute('data-label');
+                    if (dataLabel === 'איזור חלוקה') {
+                        const cellText = cell.textContent.trim();
+                        // Look for specific Merlog area patterns
+                        if (cellText.includes('מרלוג') &&
+                            (cellText.includes('צור יגאל') ||
+                             cellText.includes('צ\'יטה'))) {
+                            shouldHighlight = true;
+                            cell.classList.add('merlog-highlight');
+                            cell.style.backgroundColor = 'rgb(255, 200, 200)';
+                            cell.style.borderRadius = '4px';
+                            cell.style.padding = '4px 8px';
+                        } else {
+                            cell.classList.remove('merlog-highlight');
+                            cell.style.backgroundColor = '';
+                            cell.style.borderRadius = '';
+                            cell.style.padding = '';
+                        }
+                    }
+                });
+
+                // Check client column - look for "אניפט מרלוג"
+                Array.from(row.cells).forEach(cell => {
+                    // Skip preview cells
+                    if (cell.classList.contains('preview-cell')) return;
+                    
+                    const dataLabel = cell.getAttribute('data-label');
+                    const cellText = cell.textContent.trim();
+
+                    // Look for "אניפט מרלוג" in client column
+                    if (dataLabel === 'לקוח' && cellText.includes('אניפט מרלוג')) {
+                        shouldHighlight = true;
+                        cell.classList.add('merlog-highlight');
+                    } else {
+                        cell.classList.remove('merlog-highlight');
+                    }
+                });
+
+                // Apply highlighting
+                if (shouldHighlight) {
+                    row.classList.add('merlog-highlight');
+                    highlightedCount++;
+                } else {
+                    row.classList.remove('merlog-highlight');
+                }
+                
+                // Remove merlog-highlight from preview cells in this row
+                row.querySelectorAll('.preview-cell').forEach(previewCell => {
+                    // Force preview cell to have transparent background
+                    previewCell.style.setProperty('background-color', 'transparent', 'important');
+                    previewCell.style.setProperty('background', 'transparent', 'important');
+                    previewCell.classList.remove('merlog-highlight');
+                    previewCell.style.borderRadius = '';
+                    previewCell.style.padding = '';
+                });
+            });
+
+
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error highlighting Merlog rows:`, error);
+        }
+    }
+
+    // ---< Merlog Panel View Highlighting >---
+    function highlightMerlogPanelView() {
+        try {
+            // Check if settings exists and highlightMerlog is enabled
+            if (!settings || !settings.highlightMerlog) return;
+
+            // Find the panel view
+            const panelView = document.querySelector('.offcanvas.offcanvas-custom-right');
+            if (!panelView) return;
+
+            let shouldHighlight = false;
+
+            // Check for "שיגור למרלוג" in driver section
+            const driverSelect = panelView.querySelector('.select2-selection--single');
+            if (driverSelect) {
+                const driverText = driverSelect.textContent.trim();
+                if (driverText.includes('שיגור למרלוג')) {
+                    shouldHighlight = true;
+                    driverSelect.classList.add('merlog-highlight');
+                } else {
+                    driverSelect.classList.remove('merlog-highlight');
+                }
+            }
+
+            // Check for "מרלוג" in area section
+            const areaSections = panelView.querySelectorAll('.col-xxl-5.col-6');
+            areaSections.forEach(section => {
+                const labelSpan = section.querySelector('span');
+                if (labelSpan && labelSpan.textContent.trim() === 'איזור חלוקה') {
+                    const valueSection = section.nextElementSibling;
+                    if (valueSection) {
+                        const valueText = valueSection.textContent.trim();
+                        if (valueText.includes('מרלוג') &&
+                            (valueText.includes('צור יגאל') ||
+                             valueText.includes('צ\'יטה'))) {
+                            shouldHighlight = true;
+                            // Highlight the entire row (label + value)
+                            section.classList.add('merlog-highlight');
+                            valueSection.classList.add('merlog-highlight');
+                        } else {
+                            section.classList.remove('merlog-highlight');
+                            valueSection.classList.remove('merlog-highlight');
+                        }
+                    }
+                }
+            });
+
+            // Check for "אניפט מרלוג" in client section
+            const clientSections = panelView.querySelectorAll('.col-xxl-5.col-6');
+            clientSections.forEach(section => {
+                const labelSpan = section.querySelector('span');
+                if (labelSpan && labelSpan.textContent.trim() === 'לקוח') {
+                    const valueSection = section.nextElementSibling;
+                    if (valueSection) {
+                        const valueText = valueSection.textContent.trim();
+                        if (valueText.includes('אניפט מרלוג')) {
+                            shouldHighlight = true;
+                            // Highlight the entire row (label + value)
+                            section.classList.add('merlog-highlight');
+                            valueSection.classList.add('merlog-highlight');
+                        } else {
+                            section.classList.remove('merlog-highlight');
+                            valueSection.classList.remove('merlog-highlight');
+                        }
+                    }
+                }
+            });
+
+            // Apply highlighting to the entire panel
+            if (shouldHighlight) {
+                panelView.classList.add('merlog-highlight');
+            } else {
+                panelView.classList.remove('merlog-highlight');
+            }
+
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error highlighting Merlog panel view:`, error);
+        }
+    }
+
     // ---< Main Execution & Control Flow >---
     function runMainLogic() {
+        // Prevent multiple simultaneous executions
+        if (window.runMainLogicExecuting) return;
+        window.runMainLogicExecuting = true;
+
         safeExecute(() => {
             // MODIFICATION: Call tagColumnsForHiding initially with default scope (document)
             tagColumnsForHiding();
@@ -1464,6 +1969,7 @@ function prepareCopyElements() {
             injectImagesAndLinks(document);
             injectWhatsAppButtons();
             highlightMerlogRows(); // Add Merlog row highlighting
+            highlightMerlogPanelView(); // Add Merlog panel view highlighting
 
             // MODIFICATION START: Add MutationObserver for the "עריכת פריטים" modal
             let editTaskModal = null;
@@ -1499,50 +2005,84 @@ function prepareCopyElements() {
                 const mainTableBody = firstOrderRow.closest('tbody');
                 if (mainTableBody) safeExecute(() => injectPreviewFunctionality(mainTableBody));
             }
+
+            // Add MutationObserver for panel view highlighting
+            const panelView = document.querySelector('.offcanvas.offcanvas-custom-right');
+            if (panelView && !panelView.hasAttribute('data-merlog-observer-active')) {
+                const panelObserver = new MutationObserver((mutations) => {
+                    clearTimeout(panelObserver.debounceTimer);
+                    panelObserver.debounceTimer = setTimeout(() => {
+                        highlightMerlogPanelView();
+                    }, 100);
+                });
+                panelObserver.observe(panelView, { childList: true, subtree: true });
+                panelView.setAttribute('data-merlog-observer-active', 'true');
+            }
+        }, () => {
+            // Fallback function
+            console.error(`[${SCRIPT_NAME}] Error in runMainLogic`);
         });
+
+        // Reset the execution flag
+        window.runMainLogicExecuting = false;
     }
 
     // Create debounced version of runMainLogic
-    const debouncedRunMainLogic = debounce(runMainLogic, 100);
+    const debouncedRunMainLogic = debounce(() => {
+        if (!window.runMainLogicExecuting) {
+            runMainLogic();
+        }
+    }, 100);
 
 function highlightPickQuantities() {
-    const elements = document.querySelectorAll('td[data-label="כמות / לוקט"], div.text-muted');
+    try {
+        const elements = document.querySelectorAll('td[data-label="כמות / לוקט"], div.text-muted');
 
-    elements.forEach(el => {
-        let html = el.innerHTML;
-        const match = html.match(/(\d+)\s*\/\s*(\d+)/);
-        if (!match) return;
+        elements.forEach(el => {
+            if (!el || !el.innerHTML) return;
 
-        const picked = parseInt(match[1]);
-        const total = parseInt(match[2]);
+            let html = el.innerHTML;
+            const match = html.match(/(\d+)\s*\/\s*(\d+)/);
+            if (!match) return;
 
-        // Skip 0 / 1
-        if (picked === 0 && total === 1) return;
+            const picked = parseInt(match[1]);
+            const total = parseInt(match[2]);
 
-        const replacementClass =
-            picked === total ? 'tampermonkey-picked-full' :
-            picked === 0 && total > 1 ? 'tampermonkey-picked-none' :
-            'tampermonkey-picked-partial';
+            // Skip 0 / 1
+            if (picked === 0 && total === 1) return;
 
-        // Replace the number portion only
-        html = html.replace(/(\d+\s*\/\s*\d+)/, `<span class="${replacementClass}">$1</span>`);
-        el.innerHTML = html;
-    });
+            const replacementClass =
+                picked === total ? 'tampermonkey-picked-full' :
+                picked === 0 && total > 1 ? 'tampermonkey-picked-none' :
+                'tampermonkey-picked-partial';
+
+            // Replace the number portion only
+            html = html.replace(/(\d+\s*\/\s*\d+)/, `<span class="${replacementClass}">$1</span>`);
+            el.innerHTML = html;
+        });
+    } catch (error) {
+        console.error(`[${SCRIPT_NAME}] Error highlighting pick quantities:`, error);
+    }
 }
 
 
 
 
 async function initialize() {
-  createStatusNotifier();
-  await loadSettings();
-  registerMenuCommands();
-  injectGlobalStyles();
-  await Promise.all([ getProductData(), loadBarcodeCsv() ]);
+  try {
+    // Prevent multiple initializations
+    if (window.anipetToolboxInitialized) return;
+    window.anipetToolboxInitialized = true;
 
-  runMainLogic(); // ← הרצת ההזרקות הראשוניות
+    createStatusNotifier();
+    await loadSettings();
+    registerMenuCommands();
+    injectGlobalStyles();
+    await Promise.all([ getProductData(), loadBarcodeCsv() ]);
 
-// ◂ MutationObserver על כל הטבלה כדי לזרוק Preview בכל page-change / filter
+    runMainLogic(); // ← הרצת ההזרקות הראשוניות
+
+  // ◂ MutationObserver על כל הטבלה כדי לזרוק Preview בכל page-change / filter
 const table = document.querySelector('#operator-store-visits-table');
 if (table) {
   const tableObserver = new MutationObserver((mutations) => {
@@ -1550,7 +2090,9 @@ if (table) {
     const tb = table.querySelector('tbody');
     if (!tb) return;
     tb.removeAttribute('data-preview-injected');
-    injectPreviewFunctionality(tb);
+    if (settings && settings.enablePreview) {
+      injectPreviewFunctionality(tb);
+    }
   });
   tableObserver.observe(table, {
     childList: true,
@@ -1567,15 +2109,19 @@ if (table) {
   const observer = new MutationObserver((mutationsList) => {
     clearTimeout(observer.debounceTimer);
     observer.debounceTimer = setTimeout(() => {
-      runMainLogic();
+      if (!window.runMainLogicExecuting) {
+        runMainLogic();
+      }
       prepareCopyElements();
       highlightPickQuantities();
+      highlightMerlogPanelView(); // Add panel view highlighting
     }, 100);
   });
   observer.observe(document.body, { childList: true, subtree: true });
+  } catch (error) {
+    console.error(`[${SCRIPT_NAME}] Error in initialize:`, error);
+  }
 }
-
-
 
 document.body.addEventListener('click', function (e) {
     // Ignore clicks on buttons, links, inputs, or media
@@ -1622,20 +2168,26 @@ document.body.addEventListener('click', function (e) {
 });
 
 function copyWithFeedback(element, text) {
-    navigator.clipboard.writeText(text).then(() => {
-        element.classList.add('cell-copied');
+    try {
+        if (!element || !text) return;
 
-        // ✅ Force background color in case CSS doesn't win
-        element.style.setProperty('background-color', '#CDE5FF', 'important');
+        navigator.clipboard.writeText(text).then(() => {
+            element.classList.add('cell-copied');
 
-        setTimeout(() => {
-            element.classList.remove('cell-copied');
-            // ✅ Clean up inline style to avoid interference
-            element.style.removeProperty('background-color');
-        }, 400);
-    }).catch(err => {
-        console.warn('Copy failed:', err);
-    });
+            // ✅ Force background color in case CSS doesn't win
+            element.style.setProperty('background-color', '#CDE5FF', 'important');
+
+            setTimeout(() => {
+                element.classList.remove('cell-copied');
+                // ✅ Clean up inline style to avoid interference
+                element.style.removeProperty('background-color');
+            }, 400);
+        }).catch(err => {
+            console.warn('Copy failed:', err);
+        });
+    } catch (error) {
+        console.error(`[${SCRIPT_NAME}] Error in copyWithFeedback:`, error);
+    }
 }
 
 
@@ -1649,62 +2201,6 @@ function copyWithFeedback(element, text) {
         initialize();
     }
 
+
+
 })(); //
-
-    // ---< Merlog Row Highlighting >---
-    function highlightMerlogRows() {
-        if (!settings.highlightMerlog) return;
-        
-        try {
-            const table = document.querySelector('#operator-store-visits-table');
-            if (!table) return;
-
-            const thead = table.querySelector('thead tr');
-            if (!thead) return;
-
-            // Find column indices by header names
-            const headers = Array.from(thead.querySelectorAll('th')).map(th => th.textContent.trim());
-            const driverIndex = headers.findIndex(header => header === 'נהג');
-            const areaIndex = headers.findIndex(header => header === 'איזור חלוקה');
-
-            if (driverIndex === -1 && areaIndex === -1) return;
-
-            // Process each row
-            table.querySelectorAll('tbody tr').forEach(row => {
-                let shouldHighlight = false;
-
-                // Check driver column
-                if (driverIndex !== -1) {
-                    const driverCell = row.cells[driverIndex];
-                    if (driverCell) {
-                        const driverText = driverCell.textContent.trim();
-                        if (driverText.includes('מרלוג') || driverText.includes('למרלוג')) {
-                            shouldHighlight = true;
-                        }
-                    }
-                }
-
-                // Check area column
-                if (areaIndex !== -1) {
-                    const areaCell = row.cells[areaIndex];
-                    if (areaCell) {
-                        const areaText = areaCell.textContent.trim();
-                        if (areaText.includes('מרלוג')) {
-                            shouldHighlight = true;
-                        }
-                    }
-                }
-
-                // Apply highlighting
-                if (shouldHighlight) {
-                    row.classList.add('merlog-highlight');
-                } else {
-                    row.classList.remove('merlog-highlight');
-                }
-            });
-        } catch (error) {
-            console.error(`[${SCRIPT_NAME}] Error highlighting Merlog rows:`, error);
-        }
-    }
-
-    // ---< Main Execution & Control Flow >---
