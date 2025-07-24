@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LionWheel to Anipet Alternatives
 // @namespace    http://tampermonkey.net/
-// @version      2.6
+// @version      2.7
 // @description  Add Anipet pixel icon button to LionWheel products (barcode search) - new column after barcode
 // @author       Adam Lee
 // @match        https://members.lionwheel.com/*
@@ -125,9 +125,10 @@
                 }
             };
             
-            // Create button with click handler
-            button.onclick = function(event) {
-                // Prevent event from bubbling up to parent elements
+            // Create button with enhanced event handling
+            button.addEventListener('mousedown', function(event) {
+                // Stop all event propagation immediately
+                event.stopImmediatePropagation();
                 event.stopPropagation();
                 event.preventDefault();
                 
@@ -138,9 +139,24 @@
                 // Open in new tab
                 window.open(searchUrl, '_blank', 'noopener,noreferrer');
                 
-                // Prevent any default behavior
                 return false;
-            };
+            }, true); // Use capture phase to intercept early
+            
+            // Also prevent click events
+            button.addEventListener('click', function(event) {
+                event.stopImmediatePropagation();
+                event.stopPropagation();
+                event.preventDefault();
+                return false;
+            }, true);
+            
+            // Prevent any default button behavior
+            button.addEventListener('mouseup', function(event) {
+                event.stopImmediatePropagation();
+                event.stopPropagation();
+                event.preventDefault();
+                return false;
+            }, true);
             
             return button;
         } catch (error) {
