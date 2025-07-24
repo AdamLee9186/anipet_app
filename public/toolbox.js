@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lionwheel - Anipet Toolbox
 // @namespace    anipet-toolbox-merged
-// @version      13.3.6
+// @version      13.4.0
 // @description  AIO Script: Image Finder, Barcode Replacer, Previews, Responsive Views & more, all controlled from the Tampermonkey menu.
 // @match        *://*.lionwheel.com/*
 // @updateURL    https://anipetapp.netlify.app/toolbox.js
@@ -33,7 +33,7 @@
     }
     // ---< Main Anipet Toolbox Script >---
     const SCRIPT_NAME = "Lionwheel - Anipet Toolbox";
-    const SCRIPT_VERSION = "13.3.37"; // Updated version
+    const SCRIPT_VERSION = "13.4.0"; // Fixed to match @version
     console.log(`✅ ${SCRIPT_NAME} v${SCRIPT_VERSION} loaded.`);
 
     // ---< Constants >---
@@ -53,6 +53,47 @@
     let productDataCache = null; // For Image Finder
     let itemCodeToBarcodeMap = null; // For Barcode Replacer
     let descriptionToBarcodeMap = null; // For Barcode Replacer
+
+    // ---< Utility Functions >---
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func.apply(this, args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    function safeExecute(func, fallback = null) {
+        try {
+            return func();
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error in ${func.name || 'anonymous'}:`, error);
+            return fallback;
+        }
+    }
+
+    // ---< Cache Compression Functions >---
+    function compressCache(data) {
+        try {
+            return btoa(JSON.stringify(data));
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error compressing cache:`, error);
+            return null;
+        }
+    }
+
+    function decompressCache(compressed) {
+        try {
+            return JSON.parse(atob(compressed));
+        } catch (error) {
+            console.error(`[${SCRIPT_NAME}] Error decompressing cache:`, error);
+            return null;
+        }
+    }
 
     // ---< Settings Module >---
     const defaultSettings = {
@@ -77,7 +118,7 @@
 
     function registerMenuCommands() {
         const options = {
-            showImages: 'הצג תמונות וקישורים',
+            showImages: '🖼️ הצג תמונות וקישורים',
             replaceBarcodes: '📊 החלף מק"ט בברקוד',
             enablePreview: '👁️ אפשר תצוגה מקדימה מהירה',
             hideColumns: '🙈 הסתר עמודות מיותרות',
@@ -115,9 +156,13 @@ for (const [key, label] of Object.entries(options)) {
         const cachedData = await GM_getValue(PRODUCT_DATA_CACHE_KEY, null);
         const cachedTimestamp = await GM_getValue(IMAGE_CACHE_TIMESTAMP_KEY, 0);
         if (cachedData && (Date.now() - cachedTimestamp < CACHE_DURATION_MS)) {
-            productDataCache = cachedData;
-            if (callback) callback();
-            return;
+            // Try to decompress cached data
+            const decompressed = decompressCache(cachedData);
+            if (decompressed) {
+                productDataCache = decompressed;
+                if (callback) callback();
+                return;
+            }
         }
         try {
             updateStatus('טוען קטלוג מאסטר...', 'orange');
@@ -125,7 +170,15 @@ for (const [key, label] of Object.entries(options)) {
                 GM_xmlhttpRequest({ method: "GET", url: IMAGE_FINDER_CSV_URL, onload: resolve, onerror: reject });
             });
             productDataCache = processImageCsvText(response.responseText);
-            await GM_setValue(PRODUCT_DATA_CACHE_KEY, productDataCache);
+            
+            // Compress data before saving
+            const compressed = compressCache(productDataCache);
+            if (compressed) {
+                await GM_setValue(PRODUCT_DATA_CACHE_KEY, compressed);
+            } else {
+                // Fallback to uncompressed if compression fails
+                await GM_setValue(PRODUCT_DATA_CACHE_KEY, productDataCache);
+            }
             await GM_setValue(IMAGE_CACHE_TIMESTAMP_KEY, Date.now());
             updateStatus(`קטלוג מאסטר נטען: ${productDataCache.length} פריטים.`, 'green', true);
         } catch (error) {
@@ -161,9 +214,13 @@ for (const [key, label] of Object.entries(options)) {
         const cachedData = await GM_getValue(BARCODE_DATA_CACHE_KEY, null);
         const cachedTimestamp = await GM_getValue(BARCODE_CACHE_TIMESTAMP_KEY, 0);
         if (cachedData && (Date.now() - cachedTimestamp < CACHE_DURATION_MS)) {
-            processBarcodeData(cachedData);
-            if(callback) callback();
-            return;
+            // Try to decompress cached data
+            const decompressed = decompressCache(cachedData);
+            if (decompressed) {
+                processBarcodeData(decompressed);
+                if(callback) callback();
+                return;
+            }
         }
         updateStatus('טוען קטלוג ברקודים...', 'orange');
         GM_xmlhttpRequest({
@@ -172,9 +229,16 @@ for (const [key, label] of Object.entries(options)) {
                 if (response.status >= 200 && response.status < 300) {
                     const data = parseBarcodeCsv(response.responseText);
                     if (data) {
-                       await GM_setValue(BARCODE_DATA_CACHE_KEY, data);
-                       await GM_setValue(BARCODE_CACHE_TIMESTAMP_KEY, Date.now());
-                       processBarcodeData(data);
+                        // Compress data before saving
+                        const compressed = compressCache(data);
+                        if (compressed) {
+                            await GM_setValue(BARCODE_DATA_CACHE_KEY, compressed);
+                        } else {
+                            // Fallback to uncompressed if compression fails
+                            await GM_setValue(BARCODE_DATA_CACHE_KEY, data);
+                        }
+                        await GM_setValue(BARCODE_CACHE_TIMESTAMP_KEY, Date.now());
+                        processBarcodeData(data);
                     }
                 } else {
                     updateStatus(`שגיאה בטעינת CSV ברקודים: ${response.statusText}`, 'red');
@@ -1376,52 +1440,57 @@ function prepareCopyElements() {
 
     // ---< Main Execution & Control Flow >---
     function runMainLogic() {
-        // MODIFICATION: Call tagColumnsForHiding initially with default scope (document)
-        tagColumnsForHiding();
-        document.querySelectorAll('.table-responsive > .table, #operator-store-visits-table').forEach(addResponsiveDataAttributes);
-        document.querySelectorAll('td.text-nowrap, span.text-muted.font-weight-bold, input.order-item-sku').forEach(el => {
-            if (!el.hasAttribute('data-original-sku')) el.setAttribute('data-original-sku', el.tagName === 'INPUT' ? el.value.trim() : el.textContent.trim());
-        });
-        // MODIFICATION: Call these with default scope (document)
-        replaceBarcodesInViews();
-        injectImagesAndLinks(document);
-        injectWhatsAppButtons();
+        safeExecute(() => {
+            // MODIFICATION: Call tagColumnsForHiding initially with default scope (document)
+            tagColumnsForHiding();
+            document.querySelectorAll('.table-responsive > .table, #operator-store-visits-table').forEach(addResponsiveDataAttributes);
+            document.querySelectorAll('td.text-nowrap, span.text-muted.font-weight-bold, input.order-item-sku').forEach(el => {
+                if (!el.hasAttribute('data-original-sku')) el.setAttribute('data-original-sku', el.tagName === 'INPUT' ? el.value.trim() : el.textContent.trim());
+            });
+            // MODIFICATION: Call these with default scope (document)
+            replaceBarcodesInViews();
+            injectImagesAndLinks(document);
+            injectWhatsAppButtons();
 
-        // MODIFICATION START: Add MutationObserver for the "עריכת פריטים" modal
-        let editTaskModal = null;
-        // Iterate through all modal-content elements to find the correct one
-        document.querySelectorAll('.modal-content').forEach(modal => {
-            const modalTitle = modal.querySelector('h4.modal-title');
-            if (modalTitle && modalTitle.textContent.trim() === 'עריכת פריטים') {
-                editTaskModal = modal;
+            // MODIFICATION START: Add MutationObserver for the "עריכת פריטים" modal
+            let editTaskModal = null;
+            // Iterate through all modal-content elements to find the correct one
+            document.querySelectorAll('.modal-content').forEach(modal => {
+                const modalTitle = modal.querySelector('h4.modal-title');
+                if (modalTitle && modalTitle.textContent.trim() === 'עריכת פריטים') {
+                    editTaskModal = modal;
+                }
+            });
+
+            if (editTaskModal && !editTaskModal.hasAttribute('data-columns-hidden-observer-active')) {
+                const observerConfig = { childList: true, subtree: true };
+                const modalObserver = new MutationObserver((mutationsList, observer) => {
+                    clearTimeout(modalObserver.debounceTimer);
+                    modalObserver.debounceTimer = setTimeout(() => {
+                        const modalForm = editTaskModal.querySelector('form[id^="edit_task_"]');
+                        if (modalForm) {
+                            // Pass the specific modalForm as scope to the functions
+                            safeExecute(() => tagColumnsForHiding(modalForm)); // Re-apply column hiding
+                            safeExecute(() => injectImagesAndLinks(modalForm)); // Re-process images/links
+                            safeExecute(() => replaceBarcodesInViews(modalForm)); // Re-process barcodes
+                        }
+                    }, 50); // Small debounce delay
+                });
+                modalObserver.observe(editTaskModal, observerConfig);
+                editTaskModal.setAttribute('data-columns-hidden-observer-active', 'true'); // Mark observer as active
+            }
+            // MODIFICATION END
+
+            const firstOrderRow = document.querySelector('tr[id^="visit-row-"]');
+            if (firstOrderRow) {
+                const mainTableBody = firstOrderRow.closest('tbody');
+                if (mainTableBody) safeExecute(() => injectPreviewFunctionality(mainTableBody));
             }
         });
-
-        if (editTaskModal && !editTaskModal.hasAttribute('data-columns-hidden-observer-active')) {
-            const observerConfig = { childList: true, subtree: true };
-            const modalObserver = new MutationObserver((mutationsList, observer) => {
-                clearTimeout(modalObserver.debounceTimer);
-                modalObserver.debounceTimer = setTimeout(() => {
-                    const modalForm = editTaskModal.querySelector('form[id^="edit_task_"]');
-                    if (modalForm) {
-                        // Pass the specific modalForm as scope to the functions
-                        tagColumnsForHiding(modalForm); // Re-apply column hiding
-                        injectImagesAndLinks(modalForm); // Re-process images/links
-                        replaceBarcodesInViews(modalForm); // Re-process barcodes
-                    }
-                }, 50); // Small debounce delay
-            });
-            modalObserver.observe(editTaskModal, observerConfig);
-            editTaskModal.setAttribute('data-columns-hidden-observer-active', 'true'); // Mark observer as active
-        }
-        // MODIFICATION END
-
-        const firstOrderRow = document.querySelector('tr[id^="visit-row-"]');
-        if (firstOrderRow) {
-            const mainTableBody = firstOrderRow.closest('tbody');
-            if (mainTableBody) injectPreviewFunctionality(mainTableBody);
-        }
     }
+
+    // Create debounced version of runMainLogic
+    const debouncedRunMainLogic = debounce(runMainLogic, 100);
 
 function highlightPickQuantities() {
     const elements = document.querySelectorAll('td[data-label="כמות / לוקט"], div.text-muted');
