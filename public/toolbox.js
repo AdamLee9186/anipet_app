@@ -3,6 +3,8 @@
 // @namespace    anipet-toolbox-merged
 // @version      13.4.2
 // @description  AIO Script: Image Finder, Barcode Replacer, Previews, Responsive Views & more, all controlled from the Tampermonkey menu.
+// @author       Adam Lee
+// @source       https://github.com/AdamLee9186/anipet_app
 // @match        *://*.lionwheel.com/*
 // @updateURL    https://anipetapp.netlify.app/toolbox.js
 // @downloadURL  https://anipetapp.netlify.app/toolbox.js
