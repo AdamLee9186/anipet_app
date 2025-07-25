@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Lionwheel - Anipet Toolbox
 // @namespace    anipet-toolbox-merged
-// @version      13.4.2
+// @version      13.4.3
 // @description  AIO Script: Image Finder, Barcode Replacer, Previews, Responsive Views & more, all controlled from the Tampermonkey menu.
 // @author       Adam Lee
 // @source       https://github.com/AdamLee9186/anipet_app
@@ -83,6 +83,28 @@
         } catch (error) {
             console.error(`[${SCRIPT_NAME}] Error in ${func.name || 'anonymous'}:`, error);
             return fallback;
+        }
+    }
+
+    function getElementPath(element) {
+        try {
+            if (!element) return '';
+            const path = [];
+            let current = element;
+            while (current && current !== document.body) {
+                let selector = current.tagName.toLowerCase();
+                if (current.id) {
+                    selector += `#${current.id}`;
+                } else if (current.className) {
+                    const classes = current.className.split(' ').filter(c => c).join('.');
+                    if (classes) selector += `.${classes}`;
+                }
+                path.unshift(selector);
+                current = current.parentElement;
+            }
+            return path.join(' > ');
+        } catch (error) {
+            return 'error getting path';
         }
     }
 
@@ -168,7 +190,7 @@
                 GM_registerMenuCommand(`${statusIcon} ${label}`, createMenuCommandFunc(key));
             }
 
-            GM_registerMenuCommand('🔄 רענן קטלוגים', () => {
+                    GM_registerMenuCommand('🔄 רענן קטלוגים', () => {
                 try {
                     GM_deleteValue(PRODUCT_DATA_CACHE_KEY);
                     GM_deleteValue(IMAGE_CACHE_TIMESTAMP_KEY);
@@ -177,6 +199,367 @@
                     alert('קטלוגים נמחקו מהזיכרון. רענן את הדף כדי לטעון מחדש.');
                 } catch (error) {
                     console.error(`[${SCRIPT_NAME}] Error clearing cache:`, error);
+                }
+            });
+
+            GM_registerMenuCommand('🔍 בדוק קובץ ברקודים', async () => {
+                try {
+                    console.log(`[${SCRIPT_NAME}] Manually checking barcode CSV file...`);
+                    const response = await new Promise((resolve, reject) => {
+                        GM_xmlhttpRequest({
+                            method: "GET",
+                            url: BARCODE_REPLACER_CSV_URL,
+                            onload: resolve,
+                            onerror: reject
+                        });
+                    });
+                    
+                    if (response.status >= 200 && response.status < 300) {
+                        const csvText = response.responseText;
+                        console.log(`[${SCRIPT_NAME}] CSV file loaded successfully. Length: ${csvText.length} characters`);
+                        
+                        // Search for the specific product
+                        const searchTerm = "רויאל קנין פאוץ' לחתול בוגר אינסטינקטיב ברוטב 85 גרם";
+                        const lines = csvText.split('\n');
+                        console.log(`[${SCRIPT_NAME}] CSV has ${lines.length} lines`);
+                        
+                        let found = false;
+                        lines.forEach((line, index) => {
+                            if (line.toLowerCase().includes(searchTerm.toLowerCase())) {
+                                console.log(`[${SCRIPT_NAME}] Found product in line ${index + 1}:`, line);
+                                found = true;
+                            }
+                        });
+                        
+                        if (!found) {
+                            console.log(`[${SCRIPT_NAME}] Product not found in CSV. Searching for partial matches...`);
+                            const searchWords = searchTerm.toLowerCase().split(' ').filter(word => word.length > 2);
+                            lines.forEach((line, index) => {
+                                const lineLower = line.toLowerCase();
+                                const matchCount = searchWords.filter(word => lineLower.includes(word)).length;
+                                if (matchCount >= 3) {
+                                    console.log(`[${SCRIPT_NAME}] Partial match (${matchCount} words) in line ${index + 1}:`, line);
+                                }
+                            });
+                        }
+                        
+                        alert(`בדיקת קובץ ברקודים הושלמה. ראה את הלוג בקונסול לפרטים.`);
+                    } else {
+                        alert(`שגיאה בטעינת קובץ ברקודים: ${response.status} - ${response.statusText}`);
+                    }
+                } catch (error) {
+                    console.error(`[${SCRIPT_NAME}] Error checking barcode CSV:`, error);
+                    alert(`שגיאה בבדיקת קובץ ברקודים: ${error.message}`);
+                }
+            });
+
+            GM_registerMenuCommand('🔍 חפש ברקודים שצריכים החלפה', () => {
+                try {
+                    console.log(`[${SCRIPT_NAME}] Searching for barcodes that need replacement...`);
+                    
+                    if (!itemCodeToBarcodeMap || !descriptionToBarcodeMap) {
+                        alert('מפות הברקודים לא נטענו עדיין. נסה שוב אחרי שהדף נטען במלואו.');
+                        return;
+                    }
+                    
+                    // Find all elements that might need barcode replacement
+                    const allSkuElements = document.querySelectorAll('td.text-nowrap, span.text-muted.font-weight-bold, input.order-item-sku');
+                    let replacementsFound = 0;
+                    let missingBarcodesFound = 0;
+                    let totalChecked = 0;
+                    
+                    allSkuElements.forEach((el, index) => {
+                        if (!el.hasAttribute('data-original-sku')) return;
+                        
+                        const sku = el.getAttribute('data-original-sku');
+                        const nameContainer = el.closest('tr, .nested-fields, .pick-order-item-row');
+                        const nameEl = nameContainer?.querySelector('.order-item-name, .text-dark-75, td:nth-child(10), td:nth-child(3)');
+                        const name = nameEl?.value || nameEl?.textContent.trim() || '';
+                        
+                        if (sku && name) {
+                            totalChecked++;
+                            const barcode = findBarcode(sku, name);
+                            
+                            if (barcode && barcode !== sku) {
+                                replacementsFound++;
+                                console.log(`[${SCRIPT_NAME}] Found barcode that needs replacement:`, {
+                                    name: name,
+                                    originalSku: sku,
+                                    newBarcode: barcode,
+                                    element: el
+                                });
+                            } else if (!barcode) {
+                                missingBarcodesFound++;
+                                console.log(`[${SCRIPT_NAME}] Found product with missing barcode:`, {
+                                    name: name,
+                                    sku: sku,
+                                    element: el
+                                });
+                            }
+                        }
+                    });
+                    
+                    console.log(`[${SCRIPT_NAME}] Barcode search completed:`);
+                    console.log(`[${SCRIPT_NAME}] Total elements checked: ${totalChecked}`);
+                    console.log(`[${SCRIPT_NAME}] Replacements found: ${replacementsFound}`);
+                    console.log(`[${SCRIPT_NAME}] Missing barcodes found: ${missingBarcodesFound}`);
+                    
+                    let message = `נבדקו ${totalChecked} פריטים:\n`;
+                    message += `• ברקודים שצריכים החלפה: ${replacementsFound}\n`;
+                    message += `• מוצרים עם ברקוד חסר: ${missingBarcodesFound}\n`;
+                    message += `• מוצרים עם ברקוד נכון: ${totalChecked - replacementsFound - missingBarcodesFound}`;
+                    
+                    alert(message);
+                    
+                } catch (error) {
+                    console.error(`[${SCRIPT_NAME}] Error searching for barcode replacements:`, error);
+                    alert(`שגיאה בחיפוש ברקודים: ${error.message}`);
+                }
+            });
+
+            GM_registerMenuCommand('🔍 בדוק תא ריק של רויאל קנין', () => {
+                try {
+                    console.log(`[${SCRIPT_NAME}] Checking empty cell for Royal Canin product...`);
+                    
+                    // Search for the specific product name
+                    const productName = "רויאל קנין פאוץ' לחתול בוגר אינסטינקטיב ברוטב 85 גרם";
+                    
+                    // Find all table rows
+                    const allRows = document.querySelectorAll('tr');
+                    let foundRow = null;
+                    
+                    allRows.forEach((row, rowIndex) => {
+                        const cells = row.querySelectorAll('td');
+                        cells.forEach((cell, cellIndex) => {
+                            const cellText = cell.textContent.trim();
+                            if (cellText === productName) {
+                                foundRow = row;
+                                console.log(`[${SCRIPT_NAME}] Found product row at index ${rowIndex}, cell ${cellIndex}:`, row);
+                            }
+                        });
+                    });
+                    
+                    if (foundRow) {
+                        // Find the SKU cell in this row
+                        const skuCells = foundRow.querySelectorAll('td.text-nowrap, span.text-muted.font-weight-bold, input.order-item-sku');
+                        console.log(`[${SCRIPT_NAME}] Found ${skuCells.length} SKU cells in the row:`, skuCells);
+                        
+                        skuCells.forEach((cell, index) => {
+                            console.log(`[${SCRIPT_NAME}] SKU cell ${index + 1}:`, {
+                                tagName: cell.tagName,
+                                className: cell.className,
+                                textContent: cell.textContent,
+                                value: cell.value,
+                                innerHTML: cell.innerHTML,
+                                hasDataOriginalSku: cell.hasAttribute('data-original-sku'),
+                                dataOriginalSku: cell.getAttribute('data-original-sku'),
+                                style: {
+                                    display: cell.style.display,
+                                    visibility: cell.style.visibility,
+                                    opacity: cell.style.opacity,
+                                    width: cell.style.width,
+                                    height: cell.style.height
+                                },
+                                computedStyle: {
+                                    display: window.getComputedStyle(cell).display,
+                                    visibility: window.getComputedStyle(cell).visibility,
+                                    opacity: window.getComputedStyle(cell).opacity
+                                }
+                            });
+                        });
+                        
+                        // Also check all cells in the row
+                        const allCells = foundRow.querySelectorAll('td');
+                        console.log(`[${SCRIPT_NAME}] All cells in the row:`, allCells);
+                        allCells.forEach((cell, index) => {
+                            console.log(`[${SCRIPT_NAME}] Cell ${index + 1}:`, {
+                                tagName: cell.tagName,
+                                textContent: cell.textContent.trim(),
+                                className: cell.className,
+                                style: {
+                                    display: cell.style.display,
+                                    visibility: cell.style.visibility
+                                }
+                            });
+                        });
+                        
+                        // Check if the INPUT is visible
+                        const inputElement = foundRow.querySelector('input.order-item-sku');
+                        if (inputElement) {
+                            console.log(`[${SCRIPT_NAME}] INPUT element details:`, {
+                                value: inputElement.value,
+                                type: inputElement.type,
+                                style: {
+                                    display: inputElement.style.display,
+                                    visibility: inputElement.style.visibility,
+                                    opacity: inputElement.style.opacity,
+                                    width: inputElement.style.width,
+                                    height: inputElement.style.height
+                                },
+                                computedStyle: {
+                                    display: window.getComputedStyle(inputElement).display,
+                                    visibility: window.getComputedStyle(inputElement).visibility,
+                                    opacity: window.getComputedStyle(inputElement).opacity,
+                                    width: window.getComputedStyle(inputElement).width,
+                                    height: window.getComputedStyle(inputElement).height
+                                },
+                                offsetParent: inputElement.offsetParent,
+                                offsetWidth: inputElement.offsetWidth,
+                                offsetHeight: inputElement.offsetHeight
+                            });
+                        }
+                        
+                        // Search for INPUT elements in the entire document
+                        console.log(`[${SCRIPT_NAME}] Searching for all INPUT elements with value "9003579308738"...`);
+                        const allInputs = document.querySelectorAll('input');
+                        let foundInputs = [];
+                        allInputs.forEach((input, index) => {
+                            if (input.value === '9003579308738') {
+                                foundInputs.push({
+                                    index: index,
+                                    element: input,
+                                    parentRow: input.closest('tr'),
+                                    parentTd: input.closest('td'),
+                                    path: getElementPath(input)
+                                });
+                            }
+                        });
+                        
+                        if (foundInputs.length > 0) {
+                            console.log(`[${SCRIPT_NAME}] Found ${foundInputs.length} INPUT elements with the barcode value:`, foundInputs);
+                            foundInputs.forEach((found, index) => {
+                                console.log(`[${SCRIPT_NAME}] Found INPUT ${index + 1}:`, {
+                                    value: found.element.value,
+                                    className: found.element.className,
+                                    parentRow: found.parentRow,
+                                    parentTd: found.parentTd,
+                                    path: found.path,
+                                    isInTargetRow: found.parentRow === foundRow
+                                });
+                            });
+                        } else {
+                            console.log(`[${SCRIPT_NAME}] No INPUT elements found with the barcode value`);
+                        }
+                        
+                        alert('נמצאה שורת המוצר. ראה את הלוג בקונסול לפרטים על התאים.');
+                    } else {
+                        console.log(`[${SCRIPT_NAME}] Product row not found`);
+                        alert('לא נמצאה שורת המוצר בדף.');
+                    }
+                    
+                } catch (error) {
+                    console.error(`[${SCRIPT_NAME}] Error checking empty cell:`, error);
+                    alert(`שגיאה בבדיקת התא הריק: ${error.message}`);
+                }
+            });
+
+            GM_registerMenuCommand('🔧 תקן תצוגת ברקוד רויאל קנין', () => {
+                try {
+                    console.log(`[${SCRIPT_NAME}] Attempting to fix Royal Canin barcode display...`);
+                    
+                    // Search for the specific product name
+                    const productName = "רויאל קנין פאוץ' לחתול בוגר אינסטינקטיב ברוטב 85 גרם";
+                    
+                    // Find all table rows
+                    const allRows = document.querySelectorAll('tr');
+                    let foundRow = null;
+                    
+                    allRows.forEach((row) => {
+                        const cells = row.querySelectorAll('td');
+                        cells.forEach((cell) => {
+                            const cellText = cell.textContent.trim();
+                            if (cellText === productName) {
+                                foundRow = row;
+                            }
+                        });
+                    });
+                    
+                    if (foundRow) {
+                        // Find the INPUT element
+                        const inputElement = foundRow.querySelector('input.order-item-sku');
+                        if (inputElement) {
+                            console.log(`[${SCRIPT_NAME}] Found INPUT element, attempting to make it visible...`);
+                            
+                            // Force the input to be visible
+                            inputElement.style.display = 'block';
+                            inputElement.style.visibility = 'visible';
+                            inputElement.style.opacity = '1';
+                            inputElement.style.width = 'auto';
+                            inputElement.style.height = 'auto';
+                            inputElement.style.minWidth = '100px';
+                            inputElement.style.minHeight = '20px';
+                            
+                            // Also try to make the parent TD visible
+                            const parentTd = inputElement.closest('td');
+                            if (parentTd) {
+                                parentTd.style.display = 'table-cell';
+                                parentTd.style.visibility = 'visible';
+                                parentTd.style.opacity = '1';
+                                parentTd.style.width = 'auto';
+                                parentTd.style.minWidth = '120px';
+                            }
+                            
+                            console.log(`[${SCRIPT_NAME}] Applied visibility fixes to INPUT and parent TD`);
+                            console.log(`[${SCRIPT_NAME}] INPUT value after fix: "${inputElement.value}"`);
+                            console.log(`[${SCRIPT_NAME}] INPUT computed style:`, {
+                                display: window.getComputedStyle(inputElement).display,
+                                visibility: window.getComputedStyle(inputElement).visibility,
+                                opacity: window.getComputedStyle(inputElement).opacity,
+                                width: window.getComputedStyle(inputElement).width,
+                                height: window.getComputedStyle(inputElement).height
+                            });
+                            
+                            alert('ניסיתי לתקן את התצוגה. בדוק אם הברקוד נראה עכשיו.');
+                        } else {
+                            console.log(`[${SCRIPT_NAME}] No INPUT element found in the row, trying to create one...`);
+                            
+                            // Try to find the empty SKU cell and create an INPUT element
+                            const skuCell = foundRow.querySelector('td.text-nowrap');
+                            if (skuCell && skuCell.textContent.trim() === '') {
+                                console.log(`[${SCRIPT_NAME}] Found empty SKU cell, creating INPUT element...`);
+                                
+                                // Create a new INPUT element
+                                const newInput = document.createElement('input');
+                                newInput.type = 'text';
+                                newInput.className = 'order-item-sku barcode-input-highlight';
+                                newInput.value = '9003579308738';
+                                newInput.setAttribute('data-original-sku', '9003579308738');
+                                newInput.title = 'הוחלף. מקורי: 9003579308738';
+                                newInput.style.cssText = `
+                                    display: block !important;
+                                    visibility: visible !important;
+                                    opacity: 1 !important;
+                                    width: 120px !important;
+                                    height: 30px !important;
+                                    background-color: #e6ffed !important;
+                                    color: #006400 !important;
+                                    font-weight: bold !important;
+                                    border: 1px solid #ccc !important;
+                                    border-radius: 3px !important;
+                                    padding: 2px 4px !important;
+                                `;
+                                
+                                // Clear the cell and add the input
+                                skuCell.innerHTML = '';
+                                skuCell.appendChild(newInput);
+                                
+                                console.log(`[${SCRIPT_NAME}] Created new INPUT element in SKU cell`);
+                                console.log(`[${SCRIPT_NAME}] New INPUT value: "${newInput.value}"`);
+                                
+                                alert('יצרתי אלמנט INPUT חדש עם הברקוד. בדוק אם הוא נראה עכשיו.');
+                            } else {
+                                console.log(`[${SCRIPT_NAME}] No suitable SKU cell found for creating INPUT`);
+                                alert('לא נמצא תא SKU מתאים ליצירת אלמנט INPUT.');
+                            }
+                        }
+                    } else {
+                        console.log(`[${SCRIPT_NAME}] Product row not found`);
+                        alert('לא נמצאה שורת המוצר בדף.');
+                    }
+                    
+                } catch (error) {
+                    console.error(`[${SCRIPT_NAME}] Error fixing barcode display:`, error);
+                    alert(`שגיאה בתיקון התצוגה: ${error.message}`);
                 }
             });
         } catch (error) {
@@ -270,6 +653,7 @@
                 // Try to decompress cached data
                 const decompressed = decompressCache(cachedData);
                 if (decompressed) {
+                    console.log(`[${SCRIPT_NAME}] Using cached barcode data`);
                     processBarcodeData(decompressed);
                     if(callback) callback();
                     return;
@@ -277,6 +661,7 @@
             }
 
             updateStatus('טוען קטלוג ברקודים...', 'orange');
+            
             GM_xmlhttpRequest({
                 method: "GET", url: BARCODE_REPLACER_CSV_URL,
                 onload: async (response) => {
@@ -294,9 +679,12 @@
                                 }
                                 await GM_setValue(BARCODE_CACHE_TIMESTAMP_KEY, Date.now());
                                 processBarcodeData(data);
+                            } else {
+                                console.error(`[${SCRIPT_NAME}] Failed to parse CSV data`);
                             }
                         } else {
                             updateStatus(`שגיאה בטעינת CSV ברקודים: ${response.statusText}`, 'red');
+                            console.error(`[${SCRIPT_NAME}] HTTP error: ${response.status} - ${response.statusText}`);
                         }
                     } catch (error) {
                         console.error(`[${SCRIPT_NAME}] Error processing barcode CSV:`, error);
@@ -306,7 +694,8 @@
                         if (callback) callback();
                     }
                 },
-                onerror: () => {
+                onerror: (error) => {
+                    console.error(`[${SCRIPT_NAME}] Network error loading CSV:`, error);
                     window.barcodeDataLoading = false;
                     updateStatus('שגיאת רשת בטעינת CSV ברקודים.', 'red');
                     if (callback) callback();
@@ -325,6 +714,21 @@
             if (!data) return;
             itemCodeToBarcodeMap = new Map(data.itemCodeToBarcodeMap);
             descriptionToBarcodeMap = new Map(data.descriptionToBarcodeMap);
+            
+            // Search for the specific product mentioned in the issue
+            const searchTerm = "רויאל קנין פאוץ' לחתול בוגר אינסטינקטיב ברוטב 85 גרם";
+            
+            // Search in description map
+            for (const [productName, barcode] of descriptionToBarcodeMap.entries()) {
+                if (productName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                    searchTerm.toLowerCase().includes(productName.toLowerCase())) {
+                    if (!window.targetProductInCSVLogged) {
+                        console.log(`[${SCRIPT_NAME}] ✅ Found target product in CSV: "${productName}" -> barcode: ${barcode}`);
+                        window.targetProductInCSVLogged = true;
+                    }
+                }
+            }
+            
             updateStatus(`קטלוג ברקודים נטען: ${descriptionToBarcodeMap.size} פריטים.`, 'green', true);
         } catch (error) {
             console.error(`[${SCRIPT_NAME}] Error processing barcode data:`, error);
@@ -338,30 +742,48 @@
             let localItemCodeToBarcodeMap = new Map();
             let localDescriptionToBarcodeMap = new Map();
             let success = false;
+            
             Papa.parse(csvString, {
                 header: true, skipEmptyLines: true, trimHeaders: true,
                 complete: (results) => {
                     try {
                         const headers = results.meta.fields || Object.keys(results.data[0]);
+                        
                         const itemCodeKey = headers.find(h => h.trim() === 'קוד פריט');
                         const descKey = headers.find(h => h.trim() === 'תאור פריט');
                         const barcodeKey = headers.find(h => h.trim() === 'ברקוד');
+                        
                         if (!descKey || !barcodeKey || !itemCodeKey) {
-                            updateStatus(`שגיאה: עמודות חסרות בקובץ הברקודים.`, 'red'); return;
+                            updateStatus(`שגיאה: עמודות חסרות בקובץ הברקודים.`, 'red'); 
+                            console.error(`[${SCRIPT_NAME}] Missing required columns in CSV`);
+                            return;
                         }
-                        results.data.forEach(row => {
+                        
+                        let processedCount = 0;
+                        results.data.forEach((row, index) => {
                             const itemCode = row[itemCodeKey]?.trim();
                             const desc = row[descKey]?.trim();
                             const barcode = row[barcodeKey]?.trim();
-                            if (itemCode) localItemCodeToBarcodeMap.set(itemCode, barcode || null);
-                            if (desc) localDescriptionToBarcodeMap.set(desc, barcode || null);
+                            
+                            if (itemCode) {
+                                localItemCodeToBarcodeMap.set(itemCode, barcode || null);
+                                processedCount++;
+                            }
+                            if (desc) {
+                                localDescriptionToBarcodeMap.set(desc, barcode || null);
+                                processedCount++;
+                            }
                         });
+                        
                         success = true;
                     } catch (error) {
                         console.error(`[${SCRIPT_NAME}] Error in Papa.parse complete callback:`, error);
                     }
                 },
-                error: (error) => updateStatus(`שגיאה בפענוח קובץ הברקודים: ${error.message}`, 'red')
+                error: (error) => {
+                    updateStatus(`שגיאה בפענוח קובץ הברקודים: ${error.message}`, 'red');
+                    console.error(`[${SCRIPT_NAME}] Papa.parse error:`, error);
+                }
             });
             return success ? { itemCodeToBarcodeMap: Array.from(localItemCodeToBarcodeMap.entries()), descriptionToBarcodeMap: Array.from(localDescriptionToBarcodeMap.entries()) } : null;
         } catch (error) {
@@ -405,14 +827,73 @@
 
     function findBarcode(sku, name) {
         try {
-            if (!itemCodeToBarcodeMap || !descriptionToBarcodeMap) return null;
+            if (!itemCodeToBarcodeMap || !descriptionToBarcodeMap) {
+                return null;
+            }
+            
+            // Only log for the specific product we're looking for, and only once
+            const isTargetProduct = name && name.includes('רויאל קנין פאוץ') && name.includes('אינסטינקטיב');
+            
+            // Use a static flag to prevent repeated logging
+            if (isTargetProduct && !window.targetProductLogged) {
+                console.log(`[${SCRIPT_NAME}] 🔍 Searching for target product: "${name}"`);
+                window.targetProductLogged = true;
+            }
+            
+            // Try to find by SKU first
             if (sku && itemCodeToBarcodeMap.has(sku)) {
                 const barcode = itemCodeToBarcodeMap.get(sku);
-                if (barcode) return barcode;
+                if (barcode) {
+                    if (isTargetProduct && !window.targetProductFound) {
+                        console.log(`[${SCRIPT_NAME}] ✅ Found barcode by SKU: ${barcode}`);
+                        window.targetProductFound = true;
+                    }
+                    return barcode;
+                }
             }
+            
+            // Try to find by exact name match
             if (name && descriptionToBarcodeMap.has(name)) {
                 const barcode = descriptionToBarcodeMap.get(name);
-                if (barcode) return barcode;
+                if (barcode) {
+                    if (isTargetProduct && !window.targetProductFound) {
+                        console.log(`[${SCRIPT_NAME}] ✅ Found barcode by exact name match: ${barcode}`);
+                        window.targetProductFound = true;
+                    }
+                    return barcode;
+                }
+            }
+            
+            // Try to find by partial name match (case insensitive)
+            if (name) {
+                const normalizedName = name.toLowerCase().trim();
+                for (const [productName, barcode] of descriptionToBarcodeMap.entries()) {
+                    const normalizedProductName = productName.toLowerCase().trim();
+                    if (normalizedProductName === normalizedName) {
+                        if (isTargetProduct && !window.targetProductFound) {
+                            console.log(`[${SCRIPT_NAME}] ✅ Found barcode by normalized name match: ${barcode}`);
+                            window.targetProductFound = true;
+                        }
+                        return barcode;
+                    }
+                }
+                
+                // Try partial match (contains)
+                for (const [productName, barcode] of descriptionToBarcodeMap.entries()) {
+                    const normalizedProductName = productName.toLowerCase().trim();
+                    if (normalizedProductName.includes(normalizedName) || normalizedName.includes(normalizedProductName)) {
+                        if (isTargetProduct && !window.targetProductFound) {
+                            console.log(`[${SCRIPT_NAME}] ✅ Found barcode by partial name match: ${barcode}`);
+                            window.targetProductFound = true;
+                        }
+                        return barcode;
+                    }
+                }
+            }
+            
+            if (isTargetProduct && !window.targetProductNotFound) {
+                console.log(`[${SCRIPT_NAME}] ❌ No barcode found for target product`);
+                window.targetProductNotFound = true;
             }
             return null;
         } catch (error) {
@@ -840,18 +1321,30 @@ function showGalleryOverlay(galleryItems, startIndex) {
     function replaceBarcodesInViews(scope = document) {
     // MODIFICATION END
         try {
-            if (!settings || !settings.replaceBarcodes || !itemCodeToBarcodeMap) return;
-        const contexts = [ '#taskOverview table', '#kt_content table', 'form[id^="edit_task_"]', '.modal-body:has(.pick-order-item-table)' ];
+            if (!settings || !settings.replaceBarcodes || !itemCodeToBarcodeMap) {
+                return;
+            }
+            
+        const contexts = [ '#taskOverview table', '#kt_content table', 'form[id^="edit_task_"]', '.modal-body:has(.pick-order-item-table)', '.table.table-hover' ];
         // MODIFICATION: Changed document.querySelectorAll to scope.querySelectorAll
-        scope.querySelectorAll(contexts.join(', ')).forEach(context => {
+        const foundContexts = scope.querySelectorAll(contexts.join(', '));
+        
+        foundContexts.forEach((context, contextIndex) => {
         // MODIFICATION END
-            const skuElements = context.querySelectorAll('td.text-nowrap, span.text-muted.font-weight-bold, input.order-item-sku');
-            skuElements.forEach(el => {
-                if(!el.hasAttribute('data-original-sku')) return;
+            const skuElements = context.querySelectorAll('td.text-nowrap, td[data-label="מק״ט"], span.text-muted.font-weight-bold, input.order-item-sku');
+            
+            skuElements.forEach((el, elIndex) => {
+                if(!el.hasAttribute('data-original-sku')) {
+                    return;
+                }
+                
                 const nameContainer = el.closest('tr, .nested-fields, .pick-order-item-row');
 
                 let nameEl;
-                if (context.id === 'operator-store-visits-table' || context.matches('#taskOverview table, #kt_content table')) {
+                if (context.matches('.table.table-hover')) {
+                    // Regular tables: Name is at td[data-label="שם"]
+                    nameEl = nameContainer?.querySelector('td[data-label="שם"]');
+                } else if (context.id === 'operator-store-visits-table' || context.matches('#taskOverview table, #kt_content table')) {
                     // Main table: Name is at td:nth-child(10)
                     nameEl = nameContainer?.querySelector('.order-item-name, .text-dark-75, td:nth-child(10)');
                 } else {
@@ -861,14 +1354,294 @@ function showGalleryOverlay(galleryItems, startIndex) {
 
                 const name = nameEl?.value || nameEl?.textContent.trim() || '';
                 const sku = el.getAttribute('data-original-sku');
+                
                 const barcode = findBarcode(sku, name);
                 if (barcode) {
-                    if(el.tagName === 'INPUT') el.value = barcode; else el.textContent = barcode;
+                    // Only log if it's the specific product we're looking for AND it hasn't been processed yet
+                    const isTargetProduct = name.includes('רויאל קנין פאוץ') && name.includes('אינסטינקטיב');
+                    const alreadyProcessed = el.classList.contains('barcode-highlight') || el.classList.contains('barcode-input-highlight');
+                    
+                    if (isTargetProduct && !alreadyProcessed && !window.targetProductApplied) {
+                        console.log(`[${SCRIPT_NAME}] 🔍 Found target product: "${name}"`);
+                        console.log(`[${SCRIPT_NAME}] Element type: ${el.tagName}, Current content: "${el.textContent || el.value}"`);
+                    }
+                    
+                    if(el.tagName === 'INPUT') {
+                        el.value = barcode;
+                    } else {
+                        el.textContent = barcode;
+                    }
                     el.classList.add(el.tagName === 'INPUT' ? 'barcode-input-highlight' : 'barcode-highlight');
                     el.title = `הוחלף. מקורי: ${sku}`;
+                    // Add barcode-highlight class to the parent td
+                    const parentTd = el.closest('td.text-nowrap, td[data-label="מק״ט"]');
+                    if (parentTd) parentTd.classList.add('barcode-highlight');
+                    // Remove inline background from inner element
+                    el.style.backgroundColor = '';
+                    
+                    // Only log if it's the specific product AND it's the first time
+                    if (isTargetProduct && !alreadyProcessed && !window.targetProductApplied) {
+                        console.log(`[${SCRIPT_NAME}] ✅ Applied barcode: ${barcode}`);
+                        console.log(`[${SCRIPT_NAME}] Element after: "${el.textContent || el.value}"`);
+                        window.targetProductApplied = true;
+                    }
+                } else if (name.includes('רויאל קנין פאוץ') && name.includes('אינסטינקטיב')) {
+                    // Only log if it hasn't been processed yet
+                    const alreadyProcessed = el.classList.contains('barcode-highlight') || el.classList.contains('barcode-input-highlight');
+                    if (!alreadyProcessed && !window.targetProductNotFound) {
+                        console.log(`[${SCRIPT_NAME}] ❌ No barcode found for target product: "${name}"`);
+                        window.targetProductNotFound = true;
+                    }
+                }
+                
+                // NEW: Auto-fix empty cells that should have barcodes
+                if (!barcode && name && sku) {
+                    // Check if this is an empty cell that should have a barcode
+                    const isEmptyCell = (el.tagName === 'TD' && el.textContent.trim() === '') ||
+                                      (el.tagName === 'INPUT' && (!el.value || el.value.trim() === ''));
+                    
+                    if (isEmptyCell) {
+                        // Try to find barcode by name only (in case SKU is empty or wrong)
+                        const barcodeByName = findBarcode(null, name);
+                        if (barcodeByName) {
+                            if (el.tagName === 'INPUT') {
+                                el.value = barcodeByName;
+                            } else {
+                                el.textContent = barcodeByName;
+                            }
+                            el.classList.add(el.tagName === 'INPUT' ? 'barcode-input-highlight' : 'barcode-highlight');
+                            el.title = `הוחלף אוטומטית לפי שם. מקורי: ${sku || 'לא ידוע'}`;
+                            // Add barcode-highlight class to the parent td
+                            const parentTd = el.closest('td.text-nowrap, td[data-label="מק״ט"]');
+                            if (parentTd) parentTd.classList.add('barcode-highlight');
+                            // Remove inline background from inner element
+                            el.style.backgroundColor = '';
+                            
+                            // Log for debugging
+                            if (name.includes('רויאל קנין פאוץ') && name.includes('אינסטינקטיב')) {
+                                console.log(`[${SCRIPT_NAME}] 🔧 Auto-fixed empty cell for: "${name}" -> ${barcodeByName}`);
+                            }
+                        }
+                    }
                 }
             });
         });
+        
+        // NEW: Handle completely empty SKU cells that don't have any elements
+        foundContexts.forEach((context) => {
+            const rows = context.querySelectorAll('tr');
+            rows.forEach((row) => {
+                // Find the name cell first
+                let nameEl;
+                if (context.matches('.table.table-hover')) {
+                    // Regular tables: Name is at td[data-label="שם"]
+                    nameEl = row.querySelector('td[data-label="שם"]');
+                } else {
+                    // Other tables: Name is at various locations
+                    nameEl = row.querySelector('.order-item-name, .text-dark-75, td:nth-child(10), td:nth-child(3)');
+                }
+                if (!nameEl) return;
+                
+                const name = nameEl.value || nameEl.textContent.trim();
+                if (!name) return;
+                
+                // Find the SKU cell (empty or with minimal content)
+                let skuCell;
+                if (context.matches('.table.table-hover')) {
+                    // Regular tables: SKU cell is at td[data-label="מק״ט"]
+                    skuCell = row.querySelector('td[data-label="מק״ט"]');
+                } else {
+                    // Other tables: SKU cell is at td.text-nowrap
+                    skuCell = row.querySelector('td.text-nowrap');
+                }
+                if (!skuCell) return;
+                
+                // Check if SKU cell is empty or has minimal content
+                const skuContent = skuCell.textContent.trim();
+                const hasSkuElement = skuCell.querySelector('input, span, strong');
+                
+                if ((skuContent === '' || skuContent.length < 3) && !hasSkuElement) {
+                    // Try to find barcode by name
+                    const barcode = findBarcode(null, name);
+                    if (barcode) {
+                        // Create a text element to display the barcode
+                        const barcodeSpan = document.createElement('span');
+                        barcodeSpan.textContent = barcode;
+                        barcodeSpan.className = 'barcode-highlight';
+                        barcodeSpan.title = `הוחלף אוטומטית לפי שם. מקורי: לא ידוע`;
+                        barcodeSpan.style.cssText = `
+                            color: #006400 !important;
+                            font-weight: bold !important;
+                            cursor: help !important;
+                        `;
+                        
+                        // Clear the cell and add the barcode
+                        skuCell.innerHTML = '';
+                        skuCell.appendChild(barcodeSpan);
+                        // Add barcode-highlight class to the td cell itself
+                        skuCell.classList.add('barcode-highlight');
+                        
+                        // Log for debugging
+                        if (name.includes('רויאל קנין פאוץ') && name.includes('אינסטינקטיב')) {
+                            console.log(`[${SCRIPT_NAME}] 🔧 Auto-created barcode element for: "${name}" -> ${barcode}`);
+                        }
+                    }
+                }
+            });
+        });
+        
+        // NEW: Handle hidden INPUT elements that should be visible
+        foundContexts.forEach((context) => {
+            const hiddenInputs = context.querySelectorAll('input.order-item-sku');
+            hiddenInputs.forEach((input) => {
+                const computedStyle = window.getComputedStyle(input);
+                const isHidden = computedStyle.display === 'none' || 
+                               computedStyle.visibility === 'hidden' || 
+                               computedStyle.opacity === '0' ||
+                               input.offsetWidth === 0 ||
+                               input.offsetHeight === 0;
+                
+                if (isHidden && input.value && input.value.trim() !== '') {
+                    // Try to make the input visible
+                    input.style.display = 'block';
+                    input.style.visibility = 'visible';
+                    input.style.opacity = '1';
+                    input.style.width = 'auto';
+                    input.style.height = 'auto';
+                    input.style.minWidth = '100px';
+                    input.style.minHeight = '20px';
+                    
+                    // Also make parent TD visible
+                    const parentTd = input.closest('td');
+                    if (parentTd) {
+                        parentTd.style.display = 'table-cell';
+                        parentTd.style.visibility = 'visible';
+                        parentTd.style.opacity = '1';
+                        parentTd.style.width = 'auto';
+                        parentTd.style.minWidth = '120px';
+                    }
+                    
+                    // Log for debugging
+                    const context = input.closest('table');
+                    let nameEl;
+                    if (context && context.matches('.table.table-hover')) {
+                        // Regular tables: Name is at td[data-label="שם"]
+                        nameEl = input.closest('tr')?.querySelector('td[data-label="שם"]');
+                    } else {
+                        // Other tables: Name is at various locations
+                        nameEl = input.closest('tr')?.querySelector('.order-item-name, .text-dark-75, td:nth-child(10), td:nth-child(3)');
+                    }
+                    const name = nameEl?.value || nameEl?.textContent.trim();
+                    if (name && name.includes('רויאל קנין פאוץ') && name.includes('אינסטינקטיב')) {
+                        console.log(`[${SCRIPT_NAME}] 🔧 Made hidden INPUT visible for: "${name}" -> ${input.value}`);
+                    }
+                }
+            });
+        });
+        
+        // NEW: Handle cases where INPUT exists but is in wrong location
+        foundContexts.forEach((context) => {
+            const rows = context.querySelectorAll('tr');
+            rows.forEach((row) => {
+                // Find the name cell first
+                let nameEl;
+                if (context.matches('.table.table-hover')) {
+                    // Regular tables: Name is at td[data-label="שם"]
+                    nameEl = row.querySelector('td[data-label="שם"]');
+                } else {
+                    // Other tables: Name is at various locations
+                    nameEl = row.querySelector('.order-item-name, .text-dark-75, td:nth-child(10), td:nth-child(3)');
+                }
+                if (!nameEl) return;
+                
+                const name = nameEl.value || nameEl.textContent.trim();
+                if (!name) return;
+                
+                // Find the SKU cell
+                let skuCell;
+                if (context.matches('.table.table-hover')) {
+                    // Regular tables: SKU cell is at td[data-label="מק״ט"]
+                    skuCell = row.querySelector('td[data-label="מק״ט"]');
+                } else {
+                    // Other tables: SKU cell is at td.text-nowrap
+                    skuCell = row.querySelector('td.text-nowrap');
+                }
+                if (!skuCell) return;
+                
+                // Check if there's an INPUT in the wrong place (not in SKU cell)
+                const inputsInRow = row.querySelectorAll('input.order-item-sku');
+                inputsInRow.forEach((input) => {
+                    const inputParent = input.closest('td');
+                    if (inputParent && inputParent !== skuCell && input.value && input.value.trim() !== '') {
+                        // Move the input to the correct SKU cell
+                        skuCell.innerHTML = '';
+                        skuCell.appendChild(input);
+                        
+                        // Make sure it's visible
+                        input.style.display = 'block';
+                        input.style.visibility = 'visible';
+                        input.style.opacity = '1';
+                        input.style.width = 'auto';
+                        input.style.height = 'auto';
+                        input.style.minWidth = '100px';
+                        input.style.minHeight = '20px';
+                        
+                        // Log for debugging
+                        if (name.includes('רויאל קנין פאוץ') && name.includes('אינסטינקטיב')) {
+                            console.log(`[${SCRIPT_NAME}] 🔧 Moved INPUT to correct SKU cell for: "${name}" -> ${input.value}`);
+                        }
+                    }
+                });
+            });
+        });
+        
+        // NEW: Final cleanup - ensure all barcode elements are properly styled
+        foundContexts.forEach((context) => {
+            const barcodeElements = context.querySelectorAll('.barcode-highlight, .barcode-input-highlight');
+            barcodeElements.forEach((element) => {
+                // Ensure proper styling
+                if (element.tagName === 'INPUT') {
+                    element.style.backgroundColor = '#e6ffed';
+                    element.style.color = '#006400';
+                    element.style.fontWeight = 'bold';
+                    element.style.border = '1px solid #ccc';
+                    element.style.borderRadius = '3px';
+                    element.style.padding = '2px 4px';
+                } else {
+                    element.style.backgroundColor = '#e6ffed';
+                    element.style.color = '#006400';
+                    element.style.fontWeight = 'bold';
+                    element.style.padding = '2px 4px';
+                    element.style.borderRadius = '3px';
+                    element.style.cursor = 'help';
+                }
+            });
+        });
+        
+        // NEW: Summary logging for debugging
+        let totalFixed = 0;
+        let totalHidden = 0;
+        let totalMoved = 0;
+        let totalCreated = 0;
+        
+        foundContexts.forEach((context) => {
+            const barcodeElements = context.querySelectorAll('.barcode-highlight, .barcode-input-highlight');
+            totalFixed += barcodeElements.length;
+            
+            const hiddenInputs = context.querySelectorAll('input.order-item-sku[style*="display: block"]');
+            totalHidden += hiddenInputs.length;
+            
+            const movedInputs = context.querySelectorAll('input.order-item-sku[data-moved]');
+            totalMoved += movedInputs.length;
+            
+            const createdElements = context.querySelectorAll('.barcode-highlight[title*="אוטומטית"]');
+            totalCreated += createdElements.length;
+        });
+        
+        if (totalFixed > 0 || totalHidden > 0 || totalMoved > 0 || totalCreated > 0) {
+            console.log(`[${SCRIPT_NAME}] 🔧 Auto-fix summary: ${totalFixed} barcodes applied, ${totalHidden} hidden inputs made visible, ${totalMoved} inputs moved, ${totalCreated} elements created`);
+        }
+        
         } catch (error) {
             console.error(`[${SCRIPT_NAME}] Error replacing barcodes in views:`, error);
         }
@@ -2075,6 +2848,13 @@ async function initialize() {
     // Prevent multiple initializations
     if (window.anipetToolboxInitialized) return;
     window.anipetToolboxInitialized = true;
+
+    // Reset logging flags for new page load
+    window.targetProductLogged = false;
+    window.targetProductFound = false;
+    window.targetProductNotFound = false;
+    window.targetProductApplied = false;
+    window.targetProductInCSVLogged = false;
 
     createStatusNotifier();
     await loadSettings();
