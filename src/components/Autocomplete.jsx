@@ -664,6 +664,7 @@ const Autocomplete = React.forwardRef(function Autocomplete({
   value = "",
   onChange = null
 }, ref) {
+  console.log('🔒 Autocomplete component mounted/rendered, ref:', !!ref);
   const [query, setQuery] = useState(value);
   const [results, setResults] = useState([]);
   const [shortcuts, setShortcuts] = useState([]);
@@ -901,25 +902,31 @@ const Autocomplete = React.forwardRef(function Autocomplete({
   }, [results, shortcuts, activeIdx, handleProductSelect, handleShortcutSelect]);
 
   // Expose clear and focus methods through ref
-  React.useImperativeHandle(ref, () => ({
-    clear: () => {
-      setQuery('');
-      setResults([]);
-      setShortcuts([]); // Clear shortcuts on clear
-      setActiveIdx(-1);
-      setIsOpen(false);
-    },
-    focus: () => {
-      if (actualInputRef.current && typeof actualInputRef.current.focus === 'function') {
-        actualInputRef.current.focus();
+  React.useImperativeHandle(ref, () => {
+    const exposedMethods = {
+      clear: () => {
+        setQuery('');
+        setResults([]);
+        setShortcuts([]); // Clear shortcuts on clear
+        setActiveIdx(-1);
+        setIsOpen(false);
+      },
+      focus: () => {
+        if (actualInputRef.current && typeof actualInputRef.current.focus === 'function') {
+          actualInputRef.current.focus();
+        }
+      },
+      search: searchFunction,
+      closeDropdown: () => {
+        console.log('🔒 Autocomplete closeDropdown called');
+        setIsOpen(false);
+        setActiveIdx(-1);
       }
-    },
-    search: searchFunction,
-    closeDropdown: () => {
-      setIsOpen(false);
-      setActiveIdx(-1);
-    }
-  }));
+    };
+    
+    console.log('🔒 Autocomplete ref exposed with methods:', Object.keys(exposedMethods));
+    return exposedMethods;
+  });
 
   const handleFocus = useCallback(() => {
     if (query.length >= 3 && (results.length > 0 || shortcuts.length > 0)) {

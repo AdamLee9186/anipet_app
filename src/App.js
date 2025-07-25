@@ -3476,23 +3476,29 @@ function App() {
       isAutoSelected: isAutoSelected,
       selectedProduct: !!selectedProduct,
       hasSearchInputRef: !!searchInputRef.current,
-      hasCloseDropdownMethod: !!(searchInputRef.current && searchInputRef.current.closeDropdown)
+      hasCloseDropdownMethod: !!(searchInputRef.current && searchInputRef.current.closeDropdown),
+      searchInputRefKeys: searchInputRef.current ? Object.keys(searchInputRef.current) : [],
+      searchInputRefType: searchInputRef.current ? typeof searchInputRef.current : 'undefined'
     });
     
-    if (isAutoSelected && selectedProduct && searchInputRef.current && searchInputRef.current.closeDropdown) {
-      console.log('🔒 Closing autocomplete dropdown due to auto-selection');
-      setTimeout(() => {
-        console.log('🔒 Executing closeDropdown');
+    // Add a small delay to ensure the component is fully mounted
+    const timeoutId = setTimeout(() => {
+      if (isAutoSelected && selectedProduct && searchInputRef.current && searchInputRef.current.closeDropdown) {
+        console.log('🔒 Closing autocomplete dropdown due to auto-selection');
         searchInputRef.current.closeDropdown();
-      }, 100); // Small delay to ensure the selection is processed
-    } else {
-      console.log('❌ Conditions not met for closing dropdown:', {
-        isAutoSelected: isAutoSelected,
-        selectedProduct: !!selectedProduct,
-        hasSearchInputRef: !!searchInputRef.current,
-        hasCloseDropdownMethod: !!(searchInputRef.current && searchInputRef.current.closeDropdown)
-      });
-    }
+      } else {
+        console.log('❌ Conditions not met for closing dropdown:', {
+          isAutoSelected: isAutoSelected,
+          selectedProduct: !!selectedProduct,
+          hasSearchInputRef: !!searchInputRef.current,
+          hasCloseDropdownMethod: !!(searchInputRef.current && searchInputRef.current.closeDropdown),
+          searchInputRefKeys: searchInputRef.current ? Object.keys(searchInputRef.current) : [],
+          searchInputRefType: searchInputRef.current ? typeof searchInputRef.current : 'undefined'
+        });
+      }
+    }, 200); // Increased delay to ensure component is ready
+    
+    return () => clearTimeout(timeoutId);
   }, [isAutoSelected, selectedProduct]);
 
   // Image preview functions
@@ -3973,18 +3979,19 @@ function App() {
 
               {/* חיפוש */}
               <Box mb={4}>
-                <Suspense fallback={<LoadingFallback message="טוען חיפוש..." />}>
-                  <Autocomplete
-                    ref={searchInputRef}
-                    products={products}
-                    onProductSelect={handleSuggestionClick}
-                    onFilterShortcutSelect={handleFilterShortcutSelect}
-                    placeholder="חיפוש"
-                    disabled={loading}
-                    value={searchInputValue}
-                    onChange={handleSearchInputChange}
-                  />
-                </Suspense>
+                <Autocomplete
+                  ref={(element) => {
+                    console.log('🔒 Autocomplete ref callback called with:', element);
+                    searchInputRef.current = element;
+                  }}
+                  products={products}
+                  onProductSelect={handleSuggestionClick}
+                  onFilterShortcutSelect={handleFilterShortcutSelect}
+                  placeholder="חיפוש"
+                  disabled={loading}
+                  value={searchInputValue}
+                  onChange={handleSearchInputChange}
+                />
               </Box>
 
               {/* All filters in accordion */}
