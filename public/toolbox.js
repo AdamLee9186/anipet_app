@@ -723,7 +723,7 @@
                 if (productName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                     searchTerm.toLowerCase().includes(productName.toLowerCase())) {
                     if (!window.targetProductInCSVLogged) {
-                        console.log(`[${SCRIPT_NAME}] ✅ Found target product in CSV: "${productName}" -> barcode: ${barcode}`);
+                        // console.log(`[${SCRIPT_NAME}] ✅ Found target product in CSV: "${productName}" -> barcode: ${barcode}`);
                         window.targetProductInCSVLogged = true;
                     }
                 }
@@ -836,7 +836,7 @@
             
             // Use a static flag to prevent repeated logging
             if (isTargetProduct && !window.targetProductLogged) {
-                console.log(`[${SCRIPT_NAME}] 🔍 Searching for target product: "${name}"`);
+                                    // console.log(`[${SCRIPT_NAME}] 🔍 Searching for target product: "${name}"`);
                 window.targetProductLogged = true;
             }
             
@@ -857,7 +857,7 @@
                 const barcode = descriptionToBarcodeMap.get(name);
                 if (barcode) {
                     if (isTargetProduct && !window.targetProductFound) {
-                        console.log(`[${SCRIPT_NAME}] ✅ Found barcode by exact name match: ${barcode}`);
+                        // console.log(`[${SCRIPT_NAME}] ✅ Found barcode by exact name match: ${barcode}`);
                         window.targetProductFound = true;
                     }
                     return barcode;
@@ -892,7 +892,7 @@
             }
             
             if (isTargetProduct && !window.targetProductNotFound) {
-                console.log(`[${SCRIPT_NAME}] ❌ No barcode found for target product`);
+                                    // console.log(`[${SCRIPT_NAME}] ❌ No barcode found for target product`);
                 window.targetProductNotFound = true;
             }
             return null;
@@ -1362,8 +1362,8 @@ function showGalleryOverlay(galleryItems, startIndex) {
                     const alreadyProcessed = el.classList.contains('barcode-highlight') || el.classList.contains('barcode-input-highlight');
                     
                     if (isTargetProduct && !alreadyProcessed && !window.targetProductApplied) {
-                        console.log(`[${SCRIPT_NAME}] 🔍 Found target product: "${name}"`);
-                        console.log(`[${SCRIPT_NAME}] Element type: ${el.tagName}, Current content: "${el.textContent || el.value}"`);
+                        // console.log(`[${SCRIPT_NAME}] 🔍 Found target product: "${name}"`);
+                        // console.log(`[${SCRIPT_NAME}] Element type: ${el.tagName}, Current content: "${el.textContent || el.value}"`);
                     }
                     
                     if(el.tagName === 'INPUT') {
@@ -1381,15 +1381,15 @@ function showGalleryOverlay(galleryItems, startIndex) {
                     
                     // Only log if it's the specific product AND it's the first time
                     if (isTargetProduct && !alreadyProcessed && !window.targetProductApplied) {
-                        console.log(`[${SCRIPT_NAME}] ✅ Applied barcode: ${barcode}`);
-                        console.log(`[${SCRIPT_NAME}] Element after: "${el.textContent || el.value}"`);
+                        // console.log(`[${SCRIPT_NAME}] ✅ Applied barcode: ${barcode}`);
+                        // console.log(`[${SCRIPT_NAME}] Element after: "${el.textContent || el.value}"`);
                         window.targetProductApplied = true;
                     }
                 } else if (name.includes('רויאל קנין פאוץ') && name.includes('אינסטינקטיב')) {
                     // Only log if it hasn't been processed yet
                     const alreadyProcessed = el.classList.contains('barcode-highlight') || el.classList.contains('barcode-input-highlight');
                     if (!alreadyProcessed && !window.targetProductNotFound) {
-                        console.log(`[${SCRIPT_NAME}] ❌ No barcode found for target product: "${name}"`);
+                        // console.log(`[${SCRIPT_NAME}] ❌ No barcode found for target product: "${name}"`);
                         window.targetProductNotFound = true;
                     }
                 }
@@ -1419,7 +1419,7 @@ function showGalleryOverlay(galleryItems, startIndex) {
                             
                             // Log for debugging
                             if (name.includes('רויאל קנין פאוץ') && name.includes('אינסטינקטיב')) {
-                                console.log(`[${SCRIPT_NAME}] 🔧 Auto-fixed empty cell for: "${name}" -> ${barcodeByName}`);
+                                // console.log(`[${SCRIPT_NAME}] 🔧 Auto-fixed empty cell for: "${name}" -> ${barcodeByName}`);
                             }
                         }
                     }
@@ -1483,7 +1483,7 @@ function showGalleryOverlay(galleryItems, startIndex) {
                         
                         // Log for debugging
                         if (name.includes('רויאל קנין פאוץ') && name.includes('אינסטינקטיב')) {
-                            console.log(`[${SCRIPT_NAME}] 🔧 Auto-created barcode element for: "${name}" -> ${barcode}`);
+                            // console.log(`[${SCRIPT_NAME}] 🔧 Auto-created barcode element for: "${name}" -> ${barcode}`);
                         }
                     }
                 }
@@ -1533,7 +1533,7 @@ function showGalleryOverlay(galleryItems, startIndex) {
                     }
                     const name = nameEl?.value || nameEl?.textContent.trim();
                     if (name && name.includes('רויאל קנין פאוץ') && name.includes('אינסטינקטיב')) {
-                        console.log(`[${SCRIPT_NAME}] 🔧 Made hidden INPUT visible for: "${name}" -> ${input.value}`);
+                        // console.log(`[${SCRIPT_NAME}] 🔧 Made hidden INPUT visible for: "${name}" -> ${input.value}`);
                     }
                 }
             });
@@ -1639,7 +1639,7 @@ function showGalleryOverlay(galleryItems, startIndex) {
         });
         
         if (totalFixed > 0 || totalHidden > 0 || totalMoved > 0 || totalCreated > 0) {
-            console.log(`[${SCRIPT_NAME}] 🔧 Auto-fix summary: ${totalFixed} barcodes applied, ${totalHidden} hidden inputs made visible, ${totalMoved} inputs moved, ${totalCreated} elements created`);
+                                    // console.log(`[${SCRIPT_NAME}] 🔧 Auto-fix summary: ${totalFixed} barcodes applied, ${totalHidden} hidden inputs made visible, ${totalMoved} inputs moved, ${totalCreated} elements created`);
         }
         
         } catch (error) {
