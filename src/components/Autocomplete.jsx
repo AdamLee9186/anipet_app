@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { debounce } from 'lodash';
+import debounce from 'lodash.debounce';
 import { Search, Tag, Building2, Baby, Folder, FolderOpen, Utensils, HeartCrack, Star, CircleX } from 'lucide-react';
 import {
   Box,
