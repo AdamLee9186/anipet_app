@@ -929,10 +929,21 @@ const Autocomplete = React.forwardRef(function Autocomplete({
   });
 
   const handleFocus = useCallback(() => {
-    if (query.length >= 3 && (results.length > 0 || shortcuts.length > 0)) {
-      setIsOpen(true);
+    // Always open dropdown on focus, regardless of query length or existing results
+    if (query.length >= 3) {
+      // If there's a query with 3+ characters, show existing results or search again
+      if (results.length > 0 || shortcuts.length > 0) {
+        setIsOpen(true);
+      } else {
+        // If no results but query exists, trigger search to show results
+        search(query);
+      }
+    } else if (query.length > 0) {
+      // If there's a shorter query, trigger search to see if we can find results
+      search(query);
     }
-  }, [query, results, shortcuts]);
+    // If query is empty, don't open dropdown (let user type first)
+  }, [query, results, shortcuts, search]);
 
   const handleBlur = useCallback(() => {
     if (blurTimeoutRef.current) {
@@ -1046,6 +1057,7 @@ const Autocomplete = React.forwardRef(function Autocomplete({
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onFocus={handleFocus}
+          onClick={handleFocus} // Also trigger on click to open dropdown
           onBlur={handleBlur}
           placeholder="חיפוש"
           isDisabled={disabled}
