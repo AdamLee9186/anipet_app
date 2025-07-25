@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         LionWheel to Anipet Alternatives
 // @namespace    http://tampermonkey.net/
-// @version      3.0
+// @version      3.1
 // @description  Add Anipet pixel icon button to LionWheel products (barcode search) - new column after barcode
 // @author       Adam Lee
 // @match        https://members.lionwheel.com/*
