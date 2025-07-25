@@ -3110,6 +3110,11 @@ function App() {
     filteringStartRef.current = Date.now();
     
     setSelectedProduct(product);
+    
+    // Close autocomplete dropdown if it's open
+    if (searchInputRef.current && searchInputRef.current.closeDropdown) {
+      searchInputRef.current.closeDropdown();
+    }
 
     // Set all filter values to the selected product's values
     setFilters(prev => ({
@@ -3354,7 +3359,7 @@ function App() {
 
   // Wait for search input ref to be ready and trigger search for LionWheel
   useEffect(() => {
-    if (searchQuery && searchQuery.length >= 3 && searchInputRef.current && products.length > 0 && !isAutoSelected) {
+    if (searchQuery && searchQuery.length >= 3 && searchInputRef.current && products.length > 0 && !isAutoSelected && !selectedProduct) {
       // Wait a bit for the Autocomplete component to initialize
       const timer = setTimeout(() => {
         if (searchInputRef.current && searchInputRef.current.search) {
@@ -3375,7 +3380,7 @@ function App() {
       
       return () => clearTimeout(timer);
     }
-  }, [searchQuery, searchInputRef.current, autoSelectBestMatch, isExternalSearch, products.length, isAutoSelected]);
+  }, [searchQuery, searchInputRef.current, autoSelectBestMatch, isExternalSearch, products.length, isAutoSelected, selectedProduct]);
 
   // Handle auto-selection for external searches when products are loaded
   useEffect(() => {
@@ -3384,15 +3389,17 @@ function App() {
       
       // Wait a bit for everything to be ready
       const timer = setTimeout(() => {
-        if (searchInputRef.current && searchInputRef.current.search) {
+        if (searchInputRef.current && searchInputRef.current.search && !selectedProduct) {
           console.log('🔍 Triggering search for auto-selection:', searchQuery);
           searchInputRef.current.search(searchQuery, true); // suppressDropdown = true
           
           setTimeout(() => {
-            console.log('🎯 Auto-selecting best match:', searchQuery);
-            autoSelectBestMatch(searchQuery);
-            // Reset the external search flag after auto-selection
-            setIsExternalSearch(false);
+            if (!selectedProduct) {
+              console.log('🎯 Auto-selecting best match:', searchQuery);
+              autoSelectBestMatch(searchQuery);
+              // Reset the external search flag after auto-selection
+              setIsExternalSearch(false);
+            }
           }, 1500); // Wait 1.5 seconds for search results to be ready
         }
       }, 500); // Wait 500ms for everything to be ready
@@ -3400,6 +3407,16 @@ function App() {
       return () => clearTimeout(timer);
     }
   }, [isExternalSearch, searchQuery, products.length, selectedProduct, autoSelectBestMatch, isAutoSelected]);
+
+  // Close autocomplete dropdown when product is auto-selected
+  useEffect(() => {
+    if (isAutoSelected && selectedProduct && searchInputRef.current && searchInputRef.current.closeDropdown) {
+      console.log('🔒 Closing autocomplete dropdown due to auto-selection');
+      setTimeout(() => {
+        searchInputRef.current.closeDropdown();
+      }, 100); // Small delay to ensure the selection is processed
+    }
+  }, [isAutoSelected, selectedProduct]);
 
   // Image preview functions
   const handleOpenPreview = useCallback((url, alt, product) => {
