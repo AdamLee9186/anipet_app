@@ -1905,15 +1905,7 @@ function App() {
     });
     
     // בחירת המוצר - העתקת הלוגיקה מ-handleSuggestionClick
-    setSearchInputValue(randomProduct.productName);
-    setSearchQuery('');
-    
-    // Show loading state immediately when product is selected
-    setFiltering(true);
-    setShowFiltering(true);
-    filteringStartRef.current = Date.now();
-    
-    setSelectedProduct(randomProduct);
+    handleSuggestionClick(randomProduct, false); // Pass false for manual selection
 
     // Set all filter values to the selected product's values (like in search)
     setFilters(prev => ({
@@ -3092,9 +3084,10 @@ function App() {
     }
   }, [setSelectedProduct]);
 
-  const handleSuggestionClick = useCallback((product) => {
+  const handleSuggestionClick = useCallback((product, isAutoSelection = false) => {
     console.log('🎯 handleSuggestionClick called with product:', product.productName);
     console.log('🎯 Current state before selection:', { isAutoSelected, isExternalSearch });
+    console.log('🎯 isAutoSelection parameter:', isAutoSelection);
     
     // Update search input value with product name
     setSearchInputValue(product.productName);
@@ -3106,12 +3099,12 @@ function App() {
     setIsExternalSearch(false);
     
     // Only reset auto-selected flag if this is NOT an auto-selection
-    // We'll check if isAutoSelected is already true (meaning this is an auto-selection)
-    if (!isAutoSelected) {
+    if (!isAutoSelection) {
       console.log('🎯 Manual selection - resetting isAutoSelected to false');
       setIsAutoSelected(false);
     } else {
       console.log('🎯 Auto-selection - keeping isAutoSelected as true');
+      setIsAutoSelected(true);
     }
     
     // Show loading state immediately when product is selected
@@ -3308,10 +3301,8 @@ function App() {
     
     if (exactBarcodeMatch) {
       console.log('✅ Found exact barcode match:', exactBarcodeMatch.productName);
-      console.log('🎯 Setting isAutoSelected to true');
-      setIsAutoSelected(true); // Mark as auto-selected
       console.log('🎯 Calling handleSuggestionClick with auto-selected product');
-      handleSuggestionClick(exactBarcodeMatch);
+      handleSuggestionClick(exactBarcodeMatch, true); // Pass true for auto-selection
       return;
     }
     
@@ -3322,8 +3313,7 @@ function App() {
     
     if (exactSkuMatch) {
       console.log('✅ Found exact SKU match:', exactSkuMatch.productName);
-      setIsAutoSelected(true); // Mark as auto-selected
-      handleSuggestionClick(exactSkuMatch);
+      handleSuggestionClick(exactSkuMatch, true); // Pass true for auto-selection
       return;
     }
     
@@ -3334,8 +3324,7 @@ function App() {
     
     if (exactNameMatch) {
       console.log('✅ Found exact name match:', exactNameMatch.productName);
-      setIsAutoSelected(true); // Mark as auto-selected
-      handleSuggestionClick(exactNameMatch);
+      handleSuggestionClick(exactNameMatch, true); // Pass true for auto-selection
       return;
     }
     
@@ -3365,8 +3354,7 @@ function App() {
       
       const bestMatch = sortedMatches[0];
       console.log('✅ Found best partial match:', bestMatch.productName);
-      setIsAutoSelected(true); // Mark as auto-selected
-      handleSuggestionClick(bestMatch);
+      handleSuggestionClick(bestMatch, true); // Pass true for auto-selection
       return;
     }
     
