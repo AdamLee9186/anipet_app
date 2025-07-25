@@ -3093,6 +3093,9 @@ function App() {
   }, [setSelectedProduct]);
 
   const handleSuggestionClick = useCallback((product) => {
+    console.log('🎯 handleSuggestionClick called with product:', product.productName);
+    console.log('🎯 Current state before selection:', { isAutoSelected, isExternalSearch });
+    
     // Update search input value with product name
     setSearchInputValue(product.productName);
     
@@ -3101,8 +3104,15 @@ function App() {
     
     // Reset external search flag when user manually selects a product
     setIsExternalSearch(false);
-    // Reset auto-selected flag when user manually selects a product
-    setIsAutoSelected(false);
+    
+    // Only reset auto-selected flag if this is NOT an auto-selection
+    // We'll check if isAutoSelected is already true (meaning this is an auto-selection)
+    if (!isAutoSelected) {
+      console.log('🎯 Manual selection - resetting isAutoSelected to false');
+      setIsAutoSelected(false);
+    } else {
+      console.log('🎯 Auto-selection - keeping isAutoSelected as true');
+    }
     
     // Show loading state immediately when product is selected
     setFiltering(true);
@@ -3113,6 +3123,7 @@ function App() {
     
     // Close autocomplete dropdown if it's open
     if (searchInputRef.current && searchInputRef.current.closeDropdown) {
+      console.log('🔒 Closing dropdown in handleSuggestionClick');
       searchInputRef.current.closeDropdown();
     }
 
@@ -3299,7 +3310,7 @@ function App() {
       console.log('✅ Found exact barcode match:', exactBarcodeMatch.productName);
       console.log('🎯 Setting isAutoSelected to true');
       setIsAutoSelected(true); // Mark as auto-selected
-      console.log('🎯 Calling handleSuggestionClick');
+      console.log('🎯 Calling handleSuggestionClick with auto-selected product');
       handleSuggestionClick(exactBarcodeMatch);
       return;
     }
