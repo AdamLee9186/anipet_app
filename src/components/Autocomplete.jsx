@@ -1036,8 +1036,8 @@ const Autocomplete = React.forwardRef(function Autocomplete({
           height="100%"
           display={{ base: 'none', md: 'flex' }}
           alignItems="center"
-          left="293px"
-          pl={2}
+          left={query.length > 0 ? "297px" : "293px"}
+          pl={query.length > 0 ? 4 : 2}
         >
           {query.length > 0 ? (
             <Icon
@@ -1083,7 +1083,7 @@ const Autocomplete = React.forwardRef(function Autocomplete({
           onBlur={handleBlur}
           placeholder="חיפוש"
           isDisabled={disabled}
-          pl={12} // space for the shortcut box
+          pl={query.length > 0 ? 16 : 12} // More space when there's text for the clear button
           pr={8}  // space for the icon
           borderColor="gray.300"
           _focus={{
