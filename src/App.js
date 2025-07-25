@@ -1794,6 +1794,7 @@ function App() {
   const [viewMode, setViewMode] = useState(getInitialViewMode); // 'grid' or 'list' view mode
   const [debouncedResultsFilter, setDebouncedResultsFilter] = useState(''); // Debounced version for actual filtering
   const [isExternalSearch, setIsExternalSearch] = useState(false); // Track if search came from external link
+  const [isAutoSelected, setIsAutoSelected] = useState(false); // Track if product was auto-selected
   
   // Don't auto-save view mode changes - only save when user manually clicks buttons
   // useEffect(() => {
@@ -3086,6 +3087,8 @@ function App() {
       setSelectedProduct(null);
       // Reset external search flag when user types manually
       setIsExternalSearch(false);
+      // Reset auto-selected flag when user types manually
+      setIsAutoSelected(false);
     }
   }, [setSelectedProduct]);
 
@@ -3098,6 +3101,8 @@ function App() {
     
     // Reset external search flag when user manually selects a product
     setIsExternalSearch(false);
+    // Reset auto-selected flag when user manually selects a product
+    setIsAutoSelected(false);
     
     // Show loading state immediately when product is selected
     setFiltering(true);
@@ -3284,6 +3289,7 @@ function App() {
     
     if (exactBarcodeMatch) {
       console.log('✅ Found exact barcode match:', exactBarcodeMatch.productName);
+      setIsAutoSelected(true); // Mark as auto-selected
       handleSuggestionClick(exactBarcodeMatch);
       return;
     }
@@ -3295,6 +3301,7 @@ function App() {
     
     if (exactSkuMatch) {
       console.log('✅ Found exact SKU match:', exactSkuMatch.productName);
+      setIsAutoSelected(true); // Mark as auto-selected
       handleSuggestionClick(exactSkuMatch);
       return;
     }
@@ -3306,6 +3313,7 @@ function App() {
     
     if (exactNameMatch) {
       console.log('✅ Found exact name match:', exactNameMatch.productName);
+      setIsAutoSelected(true); // Mark as auto-selected
       handleSuggestionClick(exactNameMatch);
       return;
     }
@@ -3336,6 +3344,7 @@ function App() {
       
       const bestMatch = sortedMatches[0];
       console.log('✅ Found best partial match:', bestMatch.productName);
+      setIsAutoSelected(true); // Mark as auto-selected
       handleSuggestionClick(bestMatch);
       return;
     }
@@ -3345,7 +3354,7 @@ function App() {
 
   // Wait for search input ref to be ready and trigger search for LionWheel
   useEffect(() => {
-    if (searchQuery && searchQuery.length >= 3 && searchInputRef.current && products.length > 0) {
+    if (searchQuery && searchQuery.length >= 3 && searchInputRef.current && products.length > 0 && !isAutoSelected) {
       // Wait a bit for the Autocomplete component to initialize
       const timer = setTimeout(() => {
         if (searchInputRef.current && searchInputRef.current.search) {
@@ -3366,11 +3375,11 @@ function App() {
       
       return () => clearTimeout(timer);
     }
-  }, [searchQuery, searchInputRef.current, autoSelectBestMatch, isExternalSearch, products.length]);
+  }, [searchQuery, searchInputRef.current, autoSelectBestMatch, isExternalSearch, products.length, isAutoSelected]);
 
   // Handle auto-selection for external searches when products are loaded
   useEffect(() => {
-    if (isExternalSearch && searchQuery && searchQuery.length >= 3 && products.length > 0 && !selectedProduct) {
+    if (isExternalSearch && searchQuery && searchQuery.length >= 3 && products.length > 0 && !selectedProduct && !isAutoSelected) {
       console.log('🎯 Products loaded, attempting auto-selection for external search:', searchQuery);
       
       // Wait a bit for everything to be ready
@@ -3390,7 +3399,7 @@ function App() {
       
       return () => clearTimeout(timer);
     }
-  }, [isExternalSearch, searchQuery, products.length, selectedProduct, autoSelectBestMatch]);
+  }, [isExternalSearch, searchQuery, products.length, selectedProduct, autoSelectBestMatch, isAutoSelected]);
 
   // Image preview functions
   const handleOpenPreview = useCallback((url, alt, product) => {
@@ -3530,6 +3539,8 @@ function App() {
     
     // Reset external search flag
     setIsExternalSearch(false);
+    // Reset auto-selected flag
+    setIsAutoSelected(false);
     
     // Clear all filter selections
     setFilters({
@@ -3617,6 +3628,7 @@ function App() {
     setDebouncedResultsFilter(''); // Clear debounced results filter
     setIsResultsFiltering(false); // Clear loading state
     setIsExternalSearch(false); // Reset external search flag
+    setIsAutoSelected(false); // Reset auto-selected flag
     // Optionally scroll to product list
     setTimeout(() => {
       const mainContent = document.querySelector('#main-product-list, .main-product-list');
@@ -3702,6 +3714,8 @@ function App() {
                       }
                       // Reset external search flag
                       setIsExternalSearch(false);
+                      // Reset auto-selected flag
+                      setIsAutoSelected(false);
                       // Also clear all filters to show initial state
                       setFilters({
                         brand: [],
