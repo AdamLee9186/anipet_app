@@ -1031,34 +1031,12 @@ const Autocomplete = React.forwardRef(function Autocomplete({
     <Box ref={containerRef} position="relative" dir="rtl" className={className} style={{ textAlign: 'right' }}>
       {/* Search Input */}
       <InputGroup dir="rtl" position="relative">
-        {/* Shortcut hint or clear button on the right (end) for RTL */}
-        <InputRightElement
-          height="100%"
-          display={{ base: 'none', md: 'flex' }}
-          alignItems="center"
-          right={query.length > 0 ? "297px" : "293px"}
-          pr={query.length > 0 ? 4 : 2}
-        >
-          {query.length > 0 ? (
-            <Icon
-              as={CircleX}
-              color="gray.400"
-              boxSize={4}
-              cursor="pointer"
-              _hover={{ color: 'gray.600' }}
-              onClick={handleClear}
-              pointerEvents="auto"
-            />
+        {/* Search icon or spinner on the right (start) for RTL */}
+        <InputRightElement height="100%" display="flex" alignItems="center">
+          {isSearching ? (
+            <Spinner size="sm" color="brand.500" />
           ) : (
-            <Text
-              fontSize="xs"
-              color="gray.400"
-              fontWeight="medium"
-              whiteSpace="nowrap"
-              pointerEvents="none"
-            >
-              Ctrl+B
-            </Text>
+            <Icon as={Search} color="gray.400" boxSize={5} />
           )}
         </InputRightElement>
         {/* The input */}
@@ -1083,8 +1061,8 @@ const Autocomplete = React.forwardRef(function Autocomplete({
           onBlur={handleBlur}
           placeholder="חיפוש"
           isDisabled={disabled}
-          pr={query.length > 0 ? 16 : 12} // More space when there's text for the clear button (RTL)
-          pl={8}  // space for the icon (RTL)
+          pl={query.length > 0 ? 16 : 12} // More space when there's text for the clear button (RTL)
+          pr={8}  // space for the icon (RTL)
           borderColor="gray.300"
           _focus={{
             borderColor: 'brand.500',
@@ -1096,12 +1074,34 @@ const Autocomplete = React.forwardRef(function Autocomplete({
           style={{ textAlign: 'right' }}
           fontSize="sm"
         />
-        {/* Search icon or spinner on the left (start) for RTL */}
-        <InputLeftElement height="100%" display="flex" alignItems="center">
-          {isSearching ? (
-            <Spinner size="sm" color="brand.500" />
+        {/* Shortcut hint or clear button on the left (end) for RTL */}
+        <InputLeftElement
+          height="100%"
+          display={{ base: 'none', md: 'flex' }}
+          alignItems="center"
+          left={query.length > 0 ? "297px" : "293px"}
+          pl={query.length > 0 ? 4 : 2}
+        >
+          {query.length > 0 ? (
+            <Icon
+              as={CircleX}
+              color="gray.400"
+              boxSize={4}
+              cursor="pointer"
+              _hover={{ color: 'gray.600' }}
+              onClick={handleClear}
+              pointerEvents="auto"
+            />
           ) : (
-            <Icon as={Search} color="gray.400" boxSize={5} />
+            <Text
+              fontSize="xs"
+              color="gray.400"
+              fontWeight="medium"
+              whiteSpace="nowrap"
+              pointerEvents="none"
+            >
+              Ctrl+B
+            </Text>
           )}
         </InputLeftElement>
       </InputGroup>
