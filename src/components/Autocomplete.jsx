@@ -1060,7 +1060,7 @@ const Autocomplete = React.forwardRef(function Autocomplete({
               Ctrl+B
             </Text>
           )}
-        </InputLeftElement>
+        </InputRightElement>
         {/* The input */}
         <Input
           ref={(element) => {
