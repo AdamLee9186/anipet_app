@@ -2127,13 +2127,16 @@ function App() {
     if (searchFromUrl || barcodeFromUrl || productNameFromUrl) {
       const searchTerm = searchFromUrl || barcodeFromUrl || productNameFromUrl;
       console.log('🔗 LionWheel URL parameter detected:', searchTerm);
+      console.log('🔗 URL parameters:', { searchFromUrl, barcodeFromUrl, productNameFromUrl });
       
       // Mark this as an external search
       setIsExternalSearch(true);
+      console.log('🔗 Set isExternalSearch to true');
       
       // Set the search input value
       setSearchInputValue(searchTerm);
       setSearchQuery(searchTerm);
+      console.log('🔗 Set search query to:', searchTerm);
       
       // Clear any selected product
       setSelectedProduct(null);
@@ -3263,14 +3266,21 @@ function App() {
 
   // Function to auto-select the best match for LionWheel integration
   const autoSelectBestMatch = useCallback((query) => {
-    if (!products.length || !query) return;
+    if (!products.length || !query) {
+      console.log('❌ Auto-select failed:', { productsLength: products.length, query });
+      return;
+    }
     
     console.log('🎯 Auto-selecting best match for query:', query);
+    console.log('🎯 Products loaded:', products.length);
     
     // First, try exact barcode match
     const exactBarcodeMatch = products.find(product => 
       product.barcode && product.barcode.toString().trim() === query.trim()
     );
+    
+    console.log('🔍 Checking for exact barcode match:', query);
+    console.log('🔍 Sample barcodes:', products.slice(0, 5).map(p => p.barcode));
     
     if (exactBarcodeMatch) {
       console.log('✅ Found exact barcode match:', exactBarcodeMatch.productName);
@@ -3335,7 +3345,7 @@ function App() {
 
   // Wait for search input ref to be ready and trigger search for LionWheel
   useEffect(() => {
-    if (searchQuery && searchQuery.length >= 3 && searchInputRef.current) {
+    if (searchQuery && searchQuery.length >= 3 && searchInputRef.current && products.length > 0) {
       // Wait a bit for the Autocomplete component to initialize
       const timer = setTimeout(() => {
         if (searchInputRef.current && searchInputRef.current.search) {
@@ -3345,6 +3355,7 @@ function App() {
           // Auto-select the best match after search ONLY for external links
           if (isExternalSearch) {
             setTimeout(() => {
+              console.log('🎯 Auto-selecting best match for external search:', searchQuery);
               autoSelectBestMatch(searchQuery);
               // Reset the external search flag after auto-selection
               setIsExternalSearch(false);
@@ -3355,7 +3366,31 @@ function App() {
       
       return () => clearTimeout(timer);
     }
-  }, [searchQuery, searchInputRef.current, autoSelectBestMatch, isExternalSearch]);
+  }, [searchQuery, searchInputRef.current, autoSelectBestMatch, isExternalSearch, products.length]);
+
+  // Handle auto-selection for external searches when products are loaded
+  useEffect(() => {
+    if (isExternalSearch && searchQuery && searchQuery.length >= 3 && products.length > 0 && !selectedProduct) {
+      console.log('🎯 Products loaded, attempting auto-selection for external search:', searchQuery);
+      
+      // Wait a bit for everything to be ready
+      const timer = setTimeout(() => {
+        if (searchInputRef.current && searchInputRef.current.search) {
+          console.log('🔍 Triggering search for auto-selection:', searchQuery);
+          searchInputRef.current.search(searchQuery, true); // suppressDropdown = true
+          
+          setTimeout(() => {
+            console.log('🎯 Auto-selecting best match:', searchQuery);
+            autoSelectBestMatch(searchQuery);
+            // Reset the external search flag after auto-selection
+            setIsExternalSearch(false);
+          }, 1500); // Wait 1.5 seconds for search results to be ready
+        }
+      }, 500); // Wait 500ms for everything to be ready
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isExternalSearch, searchQuery, products.length, selectedProduct, autoSelectBestMatch]);
 
   // Image preview functions
   const handleOpenPreview = useCallback((url, alt, product) => {
