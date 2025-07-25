@@ -34,9 +34,9 @@
         };
     }
 
-    function createAlternativesButton(productName, barcode) {
+    function createAlternativesButton(productName, searchTerm) {
         try {
-            if (!barcode || barcode.trim() === '') {
+            if (!searchTerm || searchTerm.trim() === '') {
                 return null;
             }
             
@@ -132,8 +132,7 @@
                 event.stopPropagation();
                 event.preventDefault();
                 
-                // Use barcode for more accurate search results
-                const searchTerm = barcode || productName;
+                // Use searchTerm for search (barcode or product name)
                 const searchUrl = `${ANIPET_APP_URL}?barcode=${encodeURIComponent(searchTerm)}`;
                 
                 // Open in new tab
@@ -298,23 +297,27 @@
                                 return;
                             }
                             
-                            const { nameCell, barcodeCell } = findCellsByHeader(row);
+                                    const { nameCell, barcodeCell } = findCellsByHeader(row);
+        
+        // ננסה למצוא שם מוצר בעמודה עם header "שם"
+        let productName = '';
+        if (nameCell) {
+            productName = nameCell.textContent.trim();
+        }
+        
+        // אם לא מצאנו בעמודה עם header "שם", ננסה בעמודה השלישית
+        if (!productName) {
+            const thirdColumnCell = row.querySelector('td:nth-child(3)');
+            if (thirdColumnCell) {
+                productName = thirdColumnCell.textContent.trim();
+            }
+        }
+        
+
                             
-                            if (!nameCell || !barcodeCell) {
-                                return;
-                            }
-                            
-                            const productName = nameCell.textContent.trim();
-                            const barcode = barcodeCell.textContent.trim();
-                            
-                            if (!barcode) {
-                                return;
-                            }
-                            
-                            const button = createAlternativesButton(productName, barcode);
-                            
-                            if (!button) {
-                                return;
+                            let barcode = '';
+                            if (barcodeCell) {
+                                barcode = barcodeCell.textContent.trim();
                             }
                             
                             // Check if Anipet cell already exists
@@ -332,12 +335,26 @@
                                     padding: 4px;
                                     border-top: 1px solid #dee2e6;
                                 `;
-                                anipetCell.appendChild(button);
-                                
+                                            // אם יש ברקוד, צור כפתור עם ברקוד. אם אין ברקוד אבל יש שם מוצר, צור כפתור עם שם המוצר
+            if (barcode) {
+                const button = createAlternativesButton(productName, barcode);
+                if (button) {
+                    anipetCell.appendChild(button);
+                }
+            } else if (productName) {
+                const button = createAlternativesButton(productName, productName);
+                if (button) {
+                    anipetCell.appendChild(button);
+                }
+            }
                                 // Insert after barcode cell (second column)
-                                barcodeCell.parentNode.insertBefore(anipetCell, barcodeCell.nextSibling);
+                                if (barcodeCell && barcodeCell.parentNode) {
+                                    barcodeCell.parentNode.insertBefore(anipetCell, barcodeCell.nextSibling);
+                                } else {
+                                    // fallback: הוסף לסוף השורה
+                                    row.appendChild(anipetCell);
+                                }
                             }
-                            
                             // Mark the row as processed
                             row.setAttribute('data-anipet-processed', 'true');
                             added++;
