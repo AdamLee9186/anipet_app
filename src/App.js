@@ -1793,6 +1793,7 @@ function App() {
   
   const [viewMode, setViewMode] = useState(getInitialViewMode); // 'grid' or 'list' view mode
   const [debouncedResultsFilter, setDebouncedResultsFilter] = useState(''); // Debounced version for actual filtering
+  const [isExternalSearch, setIsExternalSearch] = useState(false); // Track if search came from external link
   
   // Don't auto-save view mode changes - only save when user manually clicks buttons
   // useEffect(() => {
@@ -2126,6 +2127,9 @@ function App() {
     if (searchFromUrl || barcodeFromUrl || productNameFromUrl) {
       const searchTerm = searchFromUrl || barcodeFromUrl || productNameFromUrl;
       console.log('🔗 LionWheel URL parameter detected:', searchTerm);
+      
+      // Mark this as an external search
+      setIsExternalSearch(true);
       
       // Set the search input value
       setSearchInputValue(searchTerm);
@@ -3077,6 +3081,8 @@ function App() {
     // 🚨 אם המשתמש מקליד — מבטל את המוצר שנבחר
     if (value.length >= 1) {
       setSelectedProduct(null);
+      // Reset external search flag when user types manually
+      setIsExternalSearch(false);
     }
   }, [setSelectedProduct]);
 
@@ -3086,6 +3092,9 @@ function App() {
     
     // Clear search query when product is selected
     setSearchQuery('');
+    
+    // Reset external search flag when user manually selects a product
+    setIsExternalSearch(false);
     
     // Show loading state immediately when product is selected
     setFiltering(true);
@@ -3333,16 +3342,20 @@ function App() {
           console.log('🔍 Triggering search via Autocomplete component for LionWheel:', searchQuery);
           searchInputRef.current.search(searchQuery, true); // suppressDropdown = true
           
-          // Auto-select the best match after search
-          setTimeout(() => {
-            autoSelectBestMatch(searchQuery);
-          }, 1500); // Wait 1.5 seconds for search results to be ready
+          // Auto-select the best match after search ONLY for external links
+          if (isExternalSearch) {
+            setTimeout(() => {
+              autoSelectBestMatch(searchQuery);
+              // Reset the external search flag after auto-selection
+              setIsExternalSearch(false);
+            }, 1500); // Wait 1.5 seconds for search results to be ready
+          }
         }
       }, 1000); // Wait 1 second for Autocomplete to be ready
       
       return () => clearTimeout(timer);
     }
-  }, [searchQuery, searchInputRef.current, autoSelectBestMatch]);
+  }, [searchQuery, searchInputRef.current, autoSelectBestMatch, isExternalSearch]);
 
   // Image preview functions
   const handleOpenPreview = useCallback((url, alt, product) => {
@@ -3480,6 +3493,9 @@ function App() {
       searchInputRef.current.clear();
     }
     
+    // Reset external search flag
+    setIsExternalSearch(false);
+    
     // Clear all filter selections
     setFilters({
       brand: [],
@@ -3565,6 +3581,7 @@ function App() {
     setResultsFilter(''); // Clear results filter
     setDebouncedResultsFilter(''); // Clear debounced results filter
     setIsResultsFiltering(false); // Clear loading state
+    setIsExternalSearch(false); // Reset external search flag
     // Optionally scroll to product list
     setTimeout(() => {
       const mainContent = document.querySelector('#main-product-list, .main-product-list');
@@ -3648,6 +3665,8 @@ function App() {
                       if (searchInputRef.current && searchInputRef.current.clear) {
                         searchInputRef.current.clear();
                       }
+                      // Reset external search flag
+                      setIsExternalSearch(false);
                       // Also clear all filters to show initial state
                       setFilters({
                         brand: [],
