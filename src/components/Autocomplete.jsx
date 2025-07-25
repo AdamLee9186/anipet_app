@@ -914,7 +914,11 @@ const Autocomplete = React.forwardRef(function Autocomplete({
         actualInputRef.current.focus();
       }
     },
-    search: searchFunction
+    search: searchFunction,
+    closeDropdown: () => {
+      setIsOpen(false);
+      setActiveIdx(-1);
+    }
   }));
 
   const handleFocus = useCallback(() => {
