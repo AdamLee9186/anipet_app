@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { debounce } from 'lodash';
-import { Search, Tag, Building2, Baby, Folder, FolderOpen, Utensils, HeartCrack, Star } from 'lucide-react';
+import { Search, Tag, Building2, Baby, Folder, FolderOpen, Utensils, HeartCrack, Star, CircleX } from 'lucide-react';
 import {
   Box,
   VStack,
@@ -956,6 +956,16 @@ const Autocomplete = React.forwardRef(function Autocomplete({
     }, 100);
   }, []);
 
+  const handleClear = useCallback(() => {
+    setQuery('');
+    setResults([]);
+    setShortcuts([]);
+    setActiveIdx(-1);
+    setIsOpen(false);
+    if (onChange) onChange('');
+    inputRef.current?.focus();
+  }, [onChange]);
+
 
   
   // Update displayed results when search results change
@@ -1021,23 +1031,35 @@ const Autocomplete = React.forwardRef(function Autocomplete({
     <Box ref={containerRef} position="relative" dir="rtl" className={className} style={{ textAlign: 'right' }}>
       {/* Search Input */}
       <InputGroup dir="rtl" position="relative">
-        {/* Shortcut hint on the left (start) for RTL */}
+        {/* Shortcut hint or clear button on the left (start) for RTL */}
         <InputLeftElement
           height="100%"
           display={{ base: 'none', md: 'flex' }}
           alignItems="center"
-          pointerEvents="none"
           left="293px"
           pl={2}
         >
-          <Text
-            fontSize="xs"
-            color="gray.400"
-            fontWeight="medium"
-            whiteSpace="nowrap"
-          >
-            Ctrl+B
-          </Text>
+          {query.length > 0 ? (
+            <Icon
+              as={CircleX}
+              color="gray.400"
+              boxSize={4}
+              cursor="pointer"
+              _hover={{ color: 'gray.600' }}
+              onClick={handleClear}
+              pointerEvents="auto"
+            />
+          ) : (
+            <Text
+              fontSize="xs"
+              color="gray.400"
+              fontWeight="medium"
+              whiteSpace="nowrap"
+              pointerEvents="none"
+            >
+              Ctrl+B
+            </Text>
+          )}
         </InputLeftElement>
         {/* The input */}
         <Input
