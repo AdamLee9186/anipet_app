@@ -1061,7 +1061,7 @@ const Autocomplete = React.forwardRef(function Autocomplete({
           onBlur={handleBlur}
           placeholder="חיפוש"
           isDisabled={disabled}
-          pl={query.length > 0 ? 16 : 12} // More space when there's text for the clear button (RTL)
+          pl={query.length > 0 ? 8 : 4} // Reduced space for the clear button (RTL)
           pr={8}  // space for the icon (RTL)
           borderColor="gray.300"
           _focus={{
@@ -1079,8 +1079,8 @@ const Autocomplete = React.forwardRef(function Autocomplete({
           height="100%"
           display={{ base: 'none', md: 'flex' }}
           alignItems="center"
-          left={query.length > 0 ? "297px" : "293px"}
-          pl={query.length > 0 ? 4 : 2}
+          left={query.length > 0 ? "305px" : "301px"}
+          pl={query.length > 0 ? 2 : 1}
         >
           {query.length > 0 ? (
             <Icon
