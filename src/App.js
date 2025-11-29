@@ -2506,22 +2506,36 @@ function App() {
           return false;
         }
         
-        // Simplified weight filtering - only filter if units match or if weight is in kg
+        // Simplified weight filtering with conversion between liters and kg (1 liter ≈ 1 kg)
         let passes = false;
-        if (debouncedFilters.weightUnit === 'גרם') {
+        const filterUnit = debouncedFilters.weightUnit;
+        const productUnit = product.weightUnit || '';
+        
+        if (filterUnit === 'גרם') {
           // Product weight is already in grams, no conversion needed
           passes = product.weight >= debouncedFilters.weightRange[0] && product.weight <= debouncedFilters.weightRange[1];
-        } else if (debouncedFilters.weightUnit === 'מ"ל') {
+        } else if (filterUnit === 'מ"ל') {
           // Product weight is already in ml, no conversion needed
           passes = product.weight >= debouncedFilters.weightRange[0] && product.weight <= debouncedFilters.weightRange[1];
-        } else if (debouncedFilters.weightUnit === 'ליטר') {
-          // Product weight is already in liters, no conversion needed
-          passes = product.weight >= debouncedFilters.weightRange[0] && product.weight <= debouncedFilters.weightRange[1];
-        } else if (debouncedFilters.weightUnit === 'מ"ג') {
+        } else if (filterUnit === 'ליטר') {
+          // Filter is in liters - check if product is in liters or kg (1 liter ≈ 1 kg)
+          if (productUnit === 'ליטר' || productUnit === 'קג' || productUnit === 'ק"ג' || productUnit === 'קילו') {
+            passes = product.weight >= debouncedFilters.weightRange[0] && product.weight <= debouncedFilters.weightRange[1];
+          } else {
+            passes = false;
+          }
+        } else if (filterUnit === 'מ"ג') {
           // Product weight is already in mg, no conversion needed
           passes = product.weight >= debouncedFilters.weightRange[0] && product.weight <= debouncedFilters.weightRange[1];
+        } else if (filterUnit === 'קג' || filterUnit === 'ק"ג' || filterUnit === 'קילו') {
+          // Filter is in kg - check if product is in kg or liters (1 kg ≈ 1 liter)
+          if (productUnit === 'קג' || productUnit === 'ק"ג' || productUnit === 'קילו' || productUnit === 'ליטר') {
+            passes = product.weight >= debouncedFilters.weightRange[0] && product.weight <= debouncedFilters.weightRange[1];
+          } else {
+            passes = false;
+          }
         } else {
-          // For kg and other units, use the stored weight directly
+          // For other units, use the stored weight directly
           passes = product.weight >= debouncedFilters.weightRange[0] && product.weight <= debouncedFilters.weightRange[1];
         }
         
@@ -3138,17 +3152,17 @@ function App() {
       let minPrice, maxPrice;
       // New tiered pricing logic based on product price
       if (product.salePrice < 25) {
-        // < 25₪: ±1.5₪ range
-        minPrice = Math.max(0, product.salePrice - 1.5);
-        maxPrice = product.salePrice + 1.5;
+        // < 25₪: ±3₪ range
+        minPrice = Math.max(0, product.salePrice - 3);
+        maxPrice = product.salePrice + 3;
       } else if (product.salePrice < 100) {
-        // 25–99₪: 5₪ פחות, 10₪ יותר
-        minPrice = Math.max(0, product.salePrice - 5);
-        maxPrice = product.salePrice + 10;
+        // 25–99₪: 15₪ פחות, 25₪ יותר
+        minPrice = Math.max(0, product.salePrice - 15);
+        maxPrice = product.salePrice + 25;
       } else {
-        // 100₪ and above: 10₪ פחות, 30₪ יותר
-        minPrice = Math.max(0, product.salePrice - 10);
-        maxPrice = product.salePrice + 30;
+        // 100₪ and above: 20₪ פחות, 45₪ יותר
+        minPrice = Math.max(0, product.salePrice - 20);
+        maxPrice = product.salePrice + 45;
       }
       setPriceRange([minPrice, maxPrice]);
     }
